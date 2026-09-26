@@ -32,10 +32,19 @@ def build_app(cfg, engine):
         if cfg.api_token and token != cfg.api_token:
             raise HTTPException(status_code=401, detail="bad or missing token")
 
+    def resolve(filename):
+        """Map a display name back to the real file (uploads sanitise spaces)."""
+        name = SAFE_NAME.sub("_", Path(filename).name)
+        for c in engine.library.clips:
+            if c.name == name or c.path.name == filename:
+                return c.path
+        path = Path(cfg.media_dir) / name
+        return path if path.is_file() else None
+
     def clip_json(c):
         return {"clipIndex": c.id, "name": c.name, "kind": c.kind,
                 "codec": c.codec, "durationSeconds": round(c.duration, 3),
-                "duration": engine.timecode(c.duration)}
+                "duration": engine.timecode(c.duration), "behaviour": c.behaviour}
 
     # ----- pages -----
     @app.get("/", response_class=HTMLResponse)
@@ -46,6 +55,7 @@ def build_app(cfg, engine):
     @app.get("/system")
     async def system():
         return {"model": cfg.model, "protocolVersion": cfg.protocol_version,
+                "idleClip": cfg.idle_clip,
                 "uniqueId": cfg.unique_id, "softwareVersion": cfg.version,
                 "videoFormat": cfg.video_format, "uptimeSeconds": engine.uptime(),
                 "player": engine.player_state}
@@ -117,14 +127,41 @@ def build_app(cfg, engine):
     @app.delete("/media/{filename}")
     async def delete_media(filename: str, x_lynx_token: str = Header(default=None)):
         check(x_lynx_token)
-        name = SAFE_NAME.sub("_", Path(filename).name)
-        path = Path(cfg.media_dir) / name
-        if not path.is_file():
+        path = resolve(filename)
+        if path is None:
             raise HTTPException(404, "no such file")
+        name = path.name
         path.unlink()
         await engine.library.scan()
         engine.notify_library_changed()
         return {"deleted": name, "clips": len(engine.library.clips)}
+
+    @app.put("/media/{filename}/behaviour")
+    async def set_behaviour(filename: str, body: dict,
+                            x_lynx_token: str = Header(default=None)):
+        """Per-clip behaviour: auto | once | loop | hold, and still duration."""
+        check(x_lynx_token)
+        path = resolve(filename)
+        if path is None:
+            raise HTTPException(404, "no such file")
+        try:
+            engine.library.set_behaviour(path.name, body.get("behaviour"),
+                                         body.get("duration"))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        await engine.library.scan()
+        engine.notify_library_changed()
+        return {"name": path.name, "behaviour": body.get("behaviour")}
+
+    @app.put("/transports/0/settings")
+    async def settings(body: dict):
+        """Set loop / single clip without starting or stopping playback."""
+        try:
+            await engine.set_flags(loop=body.get("loop"),
+                                   single_clip=body.get("singleClip"))
+        except PlayerUnavailable:
+            raise HTTPException(503, "player restarting")
+        return await transport()
 
     @app.post("/media/rescan")
     async def rescan(x_lynx_token: str = Header(default=None)):

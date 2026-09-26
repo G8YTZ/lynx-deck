@@ -6,6 +6,8 @@ Clip IDs are 1-based and follow filename order, so prefix files with numbers
 import asyncio
 import json
 import logging
+
+import yaml
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,6 +15,14 @@ log = logging.getLogger(__name__)
 
 VIDEO_EXT = {".mp4", ".mov", ".mkv", ".m4v", ".ts"}
 STILL_EXT = {".png", ".jpg", ".jpeg"}
+
+# Per-clip behaviour, stored in clips.yaml alongside the media:
+#   auto  - play, then move to the next clip (the default)
+#   once  - same as auto (kept as an explicit, readable choice)
+#   loop  - repeat this clip until told otherwise
+#   hold  - play once, then stop on the last frame
+BEHAVIOURS = ("auto", "once", "loop", "hold")
+ATTR_FILE = "clips.yaml"
 
 
 @dataclass
@@ -23,6 +33,7 @@ class Clip:
     kind: str          # "video" or "still"
     duration: float    # seconds
     codec: str
+    behaviour: str = "auto"
 
 
 class Library:
@@ -30,6 +41,40 @@ class Library:
         self.cfg = cfg
         self.clips: list[Clip] = []
         self._cache: dict = {}   # (path, size, mtime) -> probe result
+
+    # ----- per-clip attributes -------------------------------------------
+
+    def _attr_path(self):
+        return Path(self.cfg.media_dir) / ATTR_FILE
+
+    def load_attrs(self):
+        try:
+            with open(self._attr_path()) as f:
+                return yaml.safe_load(f) or {}
+        except FileNotFoundError:
+            return {}
+        except (OSError, yaml.YAMLError) as exc:
+            log.warning("Could not read %s: %s", ATTR_FILE, exc)
+            return {}
+
+    def save_attrs(self, attrs):
+        tmp = self._attr_path().with_suffix(".yaml.tmp")
+        with open(tmp, "w") as f:
+            yaml.safe_dump(attrs, f, sort_keys=True)
+        tmp.replace(self._attr_path())
+
+    def set_behaviour(self, name, behaviour=None, duration=None):
+        """Update one clip's behaviour and/or still duration."""
+        attrs = self.load_attrs()
+        entry = dict(attrs.get(name) or {})
+        if behaviour is not None:
+            if behaviour not in BEHAVIOURS:
+                raise ValueError(f"behaviour must be one of {BEHAVIOURS}")
+            entry["play"] = behaviour
+        if duration is not None:
+            entry["duration"] = float(duration)
+        attrs[name] = entry
+        self.save_attrs(attrs)
 
     def get(self, clip_id):
         if clip_id is None or not 1 <= clip_id <= len(self.clips):
@@ -48,6 +93,7 @@ class Library:
              and p.suffix.lower() in VIDEO_EXT | STILL_EXT),
             key=lambda p: p.name.casefold(),
         )
+        attrs = self.load_attrs()
         clips = []
         for p in files:
             st = p.stat()
@@ -58,13 +104,21 @@ class Library:
                 continue
             self._cache[key] = probe
             kind = "still" if p.suffix.lower() in STILL_EXT else "video"
-            duration = self.cfg.still_duration if kind == "still" else probe["duration"]
+            entry = attrs.get(p.name) or {}
+            duration = probe["duration"]
+            if kind == "still":
+                duration = float(entry.get("duration", self.cfg.still_duration))
+            behaviour = str(entry.get("play", "auto")).lower()
+            if behaviour not in BEHAVIOURS:
+                log.warning("%s: unknown behaviour %r, using auto", p.name, behaviour)
+                behaviour = "auto"
             clips.append(Clip(len(clips) + 1, p.name.replace(" ", "_"), p, kind,
-                              duration, probe["codec"]))
+                              duration, probe["codec"], behaviour))
         self.clips = clips
         log.info("Library: %d clips", len(clips))
         for c in clips:
-            log.info("  %2d  %-40s %-5s %s %.1fs", c.id, c.name, c.kind, c.codec, c.duration)
+            log.info("  %2d  %-36s %-5s %-5s %6.1fs  %s",
+                     c.id, c.name, c.kind, c.codec, c.duration, c.behaviour)
 
 
 async def _probe(path: Path):

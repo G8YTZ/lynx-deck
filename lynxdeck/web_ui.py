@@ -37,6 +37,8 @@ PAGE = """<!doctype html>
   .link { color:var(--red); cursor:pointer; text-decoration:underline; }
   .bar { height:6px; background:#2a2a2a; border-radius:99px; overflow:hidden; margin-top:6px; }
   .bar i { display:block; height:100%; background:var(--red); width:0; }
+  select { background:#2a2a2a; color:var(--text); border:1px solid var(--line);
+           border-radius:5px; padding:4px 6px; font-size:13px; }
   .del { color:#888; cursor:pointer; }
   .del:hover { color:var(--red); }
 </style>
@@ -68,7 +70,8 @@ PAGE = """<!doctype html>
       <strong>Clips</strong>
       <button class="ghost" onclick="rescan()">Rescan</button>
     </div>
-    <table><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Duration</th><th></th></tr></thead>
+    <table><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Duration</th>
+      <th>At end</th><th></th></tr></thead>
     <tbody id="clips"></tbody></table>
   </div>
 
@@ -111,7 +114,17 @@ async function act(what) {
   await api('/transports/0/' + what, 'PUT', body || {});
   refresh();
 }
-function toggle(key) { state[key] = !state[key]; paint(state); if (key) act('play'); }
+async function toggle(key) {
+  state[key] = !state[key];
+  paint(state);
+  await api('/transports/0/settings', 'PUT',
+            {loop: state.loop, singleClip: state.singleClip});
+  refresh();
+}
+async function setBehaviour(name, behaviour) {
+  await api('/media/' + encodeURIComponent(name) + '/behaviour', 'PUT', {behaviour});
+  loadClips();
+}
 async function goto(i) { await api('/transports/0/clipIndex', 'PUT', {clipIndex:i}); refresh(); }
 async function rescan() { await api('/media/rescan', 'POST'); loadClips(); }
 async function restartPlayer() { await api('/system/restartPlayer', 'POST'); }
@@ -149,6 +162,12 @@ async function loadClips() {
     `<tr class="clip" data-i="${c.clipIndex}" onclick="goto(${c.clipIndex})">
        <td>${c.clipIndex}</td><td>${c.name}</td><td>${c.kind} ${c.codec}</td>
        <td>${c.duration}</td>
+       <td onclick="event.stopPropagation()">
+         <select onchange="setBehaviour('${c.name}', this.value)">
+           ${['auto','once','loop','hold'].map(b =>
+             `<option value="${b}" ${b === c.behaviour ? 'selected' : ''}>${b}</option>`).join('')}
+         </select>
+       </td>
        <td class="del" onclick="event.stopPropagation(); del('${c.name}')">&times;</td>
      </tr>`).join('');
 }

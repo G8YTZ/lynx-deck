@@ -262,8 +262,9 @@ class Engine:
         log.info("Cued clip %d: %s", clip.id, clip.name)
 
     async def _apply_loop(self, clip):
-        # Single-clip loop is handled by mpv itself, which makes it seamless.
-        seamless = self.loop and self.single_clip and clip.kind == "video"
+        # mpv loops the file itself, which makes it seamless (no reload gap).
+        seamless = clip.kind == "video" and (
+            (self.loop and self.single_clip) or clip.behaviour == "loop")
         await self.mpv.set("loop-file", "inf" if seamless else "no")
 
     def _arm_still_timer(self, clip):
@@ -296,17 +297,31 @@ class Engine:
             async with self._guard():
                 if gen != self._gen or self.status != "play":
                     return
+                clip = self.library.get(self.clip_id)
                 if self.single_clip:
-                    self.status = "stopped"      # non-looping single clip: hold last frame
+                    # the controller explicitly asked for single-clip mode
+                    self.status = "stopped"      # hold the last frame
                     self._notify()
                     return
-                nxt = self.clip_id + 1
-                if nxt > len(self.library.clips):
-                    if not self.loop:
-                        self.status = "stopped"
-                        self._notify()
-                        return
-                    nxt = 1
+                behaviour = clip.behaviour if clip else "auto"
+                if behaviour == "loop":
+                    nxt = self.clip_id           # a still looping = hold it again
+                elif behaviour == "hold":
+                    self.status = "stopped"
+                    self._notify()
+                    return
+                else:
+                    nxt = self.clip_id + 1
+                    if nxt > len(self.library.clips):
+                        idle = self._idle_clip_id()
+                        if idle:
+                            nxt = idle
+                        elif self.loop:
+                            nxt = 1
+                        else:
+                            self.status = "stopped"
+                            self._notify()
+                            return
                 await self._load(nxt)
                 clip = self.library.get(nxt)
                 await self.mpv.set("pause", False)
@@ -315,6 +330,31 @@ class Engine:
                 self._notify()
         except (MpvError, ClipNotFound):
             log.exception("Advance failed")
+
+    def _idle_clip_id(self):
+        """The clip to fall back to when the list runs out, if one is configured."""
+        want = str(self.cfg.idle_clip).strip()
+        if not want:
+            return None
+        if want.isdigit():
+            return int(want) if self.library.get(int(want)) else None
+        for c in self.library.clips:
+            if c.name == want or c.path.name == want:
+                return c.id
+        log.warning("idle_clip %r not found in the library", want)
+        return None
+
+    async def set_flags(self, loop=None, single_clip=None):
+        """Change loop / single clip without disturbing playback."""
+        async with self._guard():
+            if loop is not None:
+                self.loop = loop
+            if single_clip is not None:
+                self.single_clip = single_clip
+            clip = self.library.get(self.clip_id)
+            if clip:
+                await self._apply_loop(clip)
+            self._notify()
 
     # ----- state reporting -------------------------------------------------
 

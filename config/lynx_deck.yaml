@@ -31,3 +31,7 @@ report_health: true       # add "player: ok|stalled|restarting" to transport inf
 http_port: 8080
 api_token: ""             # set a token to require X-Lynx-Token on reboot/rescan
 max_upload_mb: 8192       # largest file the upload endpoint will accept
+
+# Clip to return to when the running order finishes (name or number).
+# Leave blank to stop on the last frame instead.
+idle_clip: ""

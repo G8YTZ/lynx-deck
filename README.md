@@ -5,8 +5,8 @@ family by G8YTZ. It speaks the standard text-based deck control protocol on
 TCP 9993, so Bitfocus Companion and ATEM switchers drive it with no changes
 at the controller end.
 
-**Status:** v0.4 - deck protocol, state engine, mpv playback, watchdog,
-REST API, web UI and media upload.
+**Status:** v0.5 - deck protocol, state engine, mpv playback, watchdog,
+REST API, web UI, media upload and per-clip behaviour.
 
 ## Features (v1 target)
 - H.264 and H.265 video, PNG and JPG stills
@@ -54,6 +54,8 @@ Browse to `http://<deck>:8080`. Endpoints:
 | PUT | `/transports/0/clipIndex` | body: `{"clipIndex":2}` |
 | PUT | `/media/upload/<name>` | raw file as the request body |
 | DELETE | `/media/<name>` | remove a file |
+| PUT | `/media/<name>/behaviour` | body: `{"behaviour":"loop","duration":15}` |
+| PUT | `/transports/0/settings` | body: `{"loop":true,"singleClip":false}` (does not start playback) |
 
 Uploads are streamed to a temporary name and only moved into place once
 probed, so a half-uploaded file can never reach air. Anything the Pi 4 cannot
@@ -63,6 +65,24 @@ hardware-decode is rejected with a reason. From the command line:
 
 Set `api_token` in the config to require an `X-Lynx-Token` header on reboot
 and rescan. Companion drives all of these with its generic HTTP module.
+
+## Per-clip behaviour
+Each clip decides what happens when it ends, set from the web UI or stored in
+`clips.yaml` in the media folder:
+
+    01_testcard.png: { play: loop, duration: 15 }
+    02_ident.mp4:    { play: once }
+    03_course.mp4:   { play: hold }
+
+- `auto` / `once` - move on to the next clip (the default)
+- `loop` - repeat this clip; for video mpv loops it seamlessly, with no reload gap
+- `hold` - play once, then stop on the last frame
+- `duration` - how long a still is held before moving on
+
+When the running order finishes, the deck goes to `idle_clip` from the config
+if one is set, otherwise it wraps if the transport loop flag is on, otherwise
+it stops. The controller's own `single clip` flag always takes precedence, so
+Companion and an ATEM still behave exactly as they expect to.
 
 ## Media
 Put files in `/srv/lynxdeck/media`. Clip IDs follow filename order, so
