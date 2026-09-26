@@ -1,0 +1,22 @@
+# Lynx Deck configuration
+media_dir: /srv/lynxdeck/media
+
+# Output - match your ATEM's video standard
+video_format: 1080p50         # what HyperDeck clients are told
+drm_connector: HDMI-A-1       # HDMI0 = the micro-HDMI port nearest the USB-C power
+drm_mode: 1920x1080@50        # actual HDMI output mode
+timecode_fps: 25
+
+# Stills hold forever in single-clip mode; when playing through the list
+# they advance after this many seconds
+still_duration: 10
+
+hwdec: auto
+mpv_socket: /tmp/lynxdeck-mpv.sock
+
+# HyperDeck identity
+hyperdeck_port: 9993
+model: HyperDeck Studio Mini
+protocol_version: "1.11"
+unique_id: LYNXDECK0001
+volume_name: LynxDeck
