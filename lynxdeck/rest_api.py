@@ -1,19 +1,26 @@
 """REST API and web UI.
 
-Endpoint shapes follow Blackmagic's HyperDeck REST API where sensible, so
-Companion's generic HTTP module and any HyperDeck-aware tooling feel at home.
-Everything here is a client of the same engine the TCP protocol uses.
+Every endpoint is a client of the same engine the deck protocol uses, so the
+web UI, Companion and the TCP protocol can never disagree about state.
 """
 import asyncio
 import logging
+import os
+import re
 import subprocess
+from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from .engine import ClipNotFound, PlayerUnavailable
+from .library import STILL_EXT, VIDEO_EXT, _probe
 from .player import MpvError
 from .web_ui import PAGE
+
+SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]")
+# what the Pi 4 can actually hardware-decode
+OK_CODECS = {"h264", "hevc", "png", "mjpeg"}
 
 log = logging.getLogger(__name__)
 
@@ -62,6 +69,62 @@ def build_app(cfg, engine):
     async def workingset():
         return {"size": len(engine.library.clips),
                 "workingset": [clip_json(c) for c in engine.library.clips]}
+
+    @app.put("/media/upload/{filename}")
+    async def upload(filename: str, request: Request,
+                     x_lynx_token: str = Header(default=None)):
+        """Streamed upload: body is the raw file, so large clips need no extra deps.
+
+        Written to a temporary name and only moved into place once probed, so a
+        half-uploaded file can never reach air.
+        """
+        check(x_lynx_token)
+        name = SAFE_NAME.sub("_", Path(filename).name)
+        ext = Path(name).suffix.lower()
+        if ext not in VIDEO_EXT | STILL_EXT:
+            raise HTTPException(415, f"unsupported file type {ext}")
+        media = Path(cfg.media_dir)
+        tmp = media / f".upload-{name}.part"
+        limit = cfg.max_upload_mb * 1024 * 1024
+        written = 0
+        try:
+            with open(tmp, "wb") as f:
+                async for chunk in request.stream():
+                    written += len(chunk)
+                    if written > limit:
+                        raise HTTPException(413, f"larger than {cfg.max_upload_mb} MB")
+                    f.write(chunk)
+            if written == 0:
+                raise HTTPException(400, "empty upload")
+            probe = await _probe(tmp)
+            if probe is None:
+                raise HTTPException(415, "not a readable media file")
+            if probe["codec"] not in OK_CODECS:
+                raise HTTPException(415, f"{probe['codec']} is not supported by the Pi 4")
+            os.replace(tmp, media / name)
+        except HTTPException:
+            tmp.unlink(missing_ok=True)
+            raise
+        except OSError as exc:
+            tmp.unlink(missing_ok=True)
+            raise HTTPException(500, f"write failed: {exc}")
+        await engine.library.scan()
+        engine.notify_library_changed()
+        log.info("Uploaded %s (%.1f MB, %s)", name, written / 1e6, probe["codec"])
+        return {"name": name, "bytes": written, "codec": probe["codec"],
+                "clips": len(engine.library.clips)}
+
+    @app.delete("/media/{filename}")
+    async def delete_media(filename: str, x_lynx_token: str = Header(default=None)):
+        check(x_lynx_token)
+        name = SAFE_NAME.sub("_", Path(filename).name)
+        path = Path(cfg.media_dir) / name
+        if not path.is_file():
+            raise HTTPException(404, "no such file")
+        path.unlink()
+        await engine.library.scan()
+        engine.notify_library_changed()
+        return {"deleted": name, "clips": len(engine.library.clips)}
 
     @app.post("/media/rescan")
     async def rescan(x_lynx_token: str = Header(default=None)):

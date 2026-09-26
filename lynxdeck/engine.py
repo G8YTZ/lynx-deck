@@ -1,6 +1,6 @@
 """State engine: the single source of truth for transport state.
 
-Every controller (HyperDeck TCP server now; REST API, web UI and scheduler
+Every controller (deck protocol, REST API, web UI and scheduler
 later) is just a client of this engine, so they always agree on state.
 """
 import asyncio

@@ -18,7 +18,7 @@ STILL_EXT = {".png", ".jpg", ".jpeg"}
 @dataclass
 class Clip:
     id: int
-    name: str          # display name (spaces replaced: HyperDeck clients split on them)
+    name: str          # display name (spaces replaced: controllers split on them)
     path: Path
     kind: str          # "video" or "still"
     duration: float    # seconds

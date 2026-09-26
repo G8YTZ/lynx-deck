@@ -1,5 +1,5 @@
 [Unit]
-Description=Lynx Deck - HyperDeck-compatible media player
+Description=Lynx Deck - networked media player
 After=network-online.target
 Wants=network-online.target
 

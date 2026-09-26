@@ -2,7 +2,7 @@
 media_dir: /srv/lynxdeck/media
 
 # Output - match your ATEM's video standard
-video_format: 1080p50         # what HyperDeck clients are told
+video_format: 1080p50         # what controllers are told
 drm_connector: HDMI-A-1       # HDMI0 = the micro-HDMI port nearest the USB-C power
 drm_mode: 1920x1080@50        # actual HDMI output mode
 timecode_fps: 25
@@ -14,9 +14,9 @@ still_duration: 10
 hwdec: auto
 mpv_socket: /tmp/lynxdeck-mpv.sock
 
-# HyperDeck identity
+# Deck identity
 hyperdeck_port: 9993
-model: HyperDeck Studio Mini
+model: Lynx Deck
 protocol_version: "1.11"
 unique_id: LYNXDECK0001
 volume_name: LynxDeck
@@ -30,3 +30,4 @@ report_health: true       # add "player: ok|stalled|restarting" to transport inf
 # Web UI / REST API
 http_port: 8080
 api_token: ""             # set a token to require X-Lynx-Token on reboot/rescan
+max_upload_mb: 8192       # largest file the upload endpoint will accept

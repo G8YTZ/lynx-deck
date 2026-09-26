@@ -1,17 +1,18 @@
 # Lynx Deck
 
-A HyperDeck-compatible playback server for the Raspberry Pi 4, part of the
-Lynx family by G8YTZ. Controlled by Bitfocus Companion or an ATEM switcher
-using the HyperDeck Ethernet Protocol on TCP 9993.
+A networked media playback server for the Raspberry Pi 4, part of the Lynx
+family by G8YTZ. It speaks the standard text-based deck control protocol on
+TCP 9993, so Bitfocus Companion and ATEM switchers drive it with no changes
+at the controller end.
 
-**Status:** v0.3 - HyperDeck protocol, state engine, mpv playback, watchdog,
-REST API and web UI.
+**Status:** v0.4 - deck protocol, state engine, mpv playback, watchdog,
+REST API, web UI and media upload.
 
 ## Features (v1 target)
 - H.264 and H.265 video, PNG and JPG stills
 - 1080p HDMI output (4K/HDR planned for v2)
-- HyperDeck protocol playback subset: play, stop, goto, loop, single clip, clip list, notify
-- REST API and web UI with remote upload (coming next)
+- Deck protocol playback subset: play, stop, goto, loop, single clip, clip list, notify
+- REST API, web UI, drag-and-drop upload, self-healing player watchdog
 
 ## Watchdog
 The control protocol never depends on the player. Every mpv call has a timeout,
@@ -51,6 +52,14 @@ Browse to `http://<deck>:8080`. Endpoints:
 | PUT | `/transports/0/play` | body: `{"loop":true,"singleClip":false}` |
 | PUT | `/transports/0/stop` | stop |
 | PUT | `/transports/0/clipIndex` | body: `{"clipIndex":2}` |
+| PUT | `/media/upload/<name>` | raw file as the request body |
+| DELETE | `/media/<name>` | remove a file |
+
+Uploads are streamed to a temporary name and only moved into place once
+probed, so a half-uploaded file can never reach air. Anything the Pi 4 cannot
+hardware-decode is rejected with a reason. From the command line:
+
+    curl -X PUT --data-binary @ident.mp4 http://<deck>:8080/media/upload/03_ident.mp4
 
 Set `api_token` in the config to require an `X-Lynx-Token` header on reboot
 and rescan. Companion drives all of these with its generic HTTP module.

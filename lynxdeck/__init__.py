@@ -1,2 +1,2 @@
-"""Lynx Deck - HyperDeck-compatible playback server for Raspberry Pi."""
-__version__ = "0.3.0"
+"""Lynx Deck - networked playback server for Raspberry Pi."""
+__version__ = "0.4.0"

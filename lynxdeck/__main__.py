@@ -6,7 +6,7 @@ import signal
 
 from . import __version__, config
 from .engine import Engine
-from .hyperdeck_server import HyperDeckServer
+from .deck_protocol import DeckServer
 from .library import Library
 from .rest_api import serve as serve_http
 
@@ -18,7 +18,7 @@ async def run(cfg):
     await library.scan()
     engine = Engine(cfg, library)
     await engine.start()
-    server = HyperDeckServer(cfg, engine)
+    server = DeckServer(cfg, engine)
     await server.start()
     http_task = asyncio.create_task(serve_http(cfg, engine))
 

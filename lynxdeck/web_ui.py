@@ -31,6 +31,14 @@ PAGE = """<!doctype html>
   .ok { background:#12451f; color:#7ee08f; }
   .bad { background:#4a1212; color:#ff9c9c; }
   .muted { opacity:.6; font-size:13px; }
+  .drop { border:2px dashed var(--line); border-radius:8px; padding:26px;
+          text-align:center; margin-top:10px; transition:.15s; }
+  .drop.over { border-color:var(--red); background:#2a1010; }
+  .link { color:var(--red); cursor:pointer; text-decoration:underline; }
+  .bar { height:6px; background:#2a2a2a; border-radius:99px; overflow:hidden; margin-top:6px; }
+  .bar i { display:block; height:100%; background:var(--red); width:0; }
+  .del { color:#888; cursor:pointer; }
+  .del:hover { color:var(--red); }
 </style>
 </head>
 <body>
@@ -60,8 +68,20 @@ PAGE = """<!doctype html>
       <strong>Clips</strong>
       <button class="ghost" onclick="rescan()">Rescan</button>
     </div>
-    <table><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Duration</th></tr></thead>
+    <table><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Duration</th><th></th></tr></thead>
     <tbody id="clips"></tbody></table>
+  </div>
+
+  <div class="panel">
+    <strong>Upload media</strong>
+    <div id="drop" class="drop">
+      Drop video or stills here, or <label class="link">choose files
+      <input type="file" id="file" multiple hidden
+             accept=".mp4,.mov,.mkv,.m4v,.ts,.png,.jpg,.jpeg"></label>
+    </div>
+    <div id="progress" class="muted" style="margin-top:10px"></div>
+    <div class="muted">H.264 or H.265 video, PNG or JPG stills. Number the
+      filenames (01_, 02_ ...) to set the running order.</div>
   </div>
 
   <div class="panel">
@@ -128,8 +148,53 @@ async function loadClips() {
   document.getElementById('clips').innerHTML = d.workingset.map(c =>
     `<tr class="clip" data-i="${c.clipIndex}" onclick="goto(${c.clipIndex})">
        <td>${c.clipIndex}</td><td>${c.name}</td><td>${c.kind} ${c.codec}</td>
-       <td>${c.duration}</td></tr>`).join('');
+       <td>${c.duration}</td>
+       <td class="del" onclick="event.stopPropagation(); del('${c.name}')">&times;</td>
+     </tr>`).join('');
 }
+
+async function del(name) {
+  if (!confirm('Delete ' + name + '?')) return;
+  await api('/media/' + encodeURIComponent(name), 'DELETE');
+  loadClips();
+}
+
+function upload(file) {
+  return new Promise((resolve, reject) => {
+    const box = document.getElementById('progress');
+    const line = document.createElement('div');
+    line.innerHTML = `${file.name} <div class="bar"><i></i></div>`;
+    box.appendChild(line);
+    const bar = line.querySelector('i');
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', '/media/upload/' + encodeURIComponent(file.name));
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) bar.style.width = (e.loaded / e.total * 100) + '%';
+    };
+    xhr.onload = () => {
+      if (xhr.status < 300) { bar.style.width = '100%'; resolve(); }
+      else { line.innerHTML = `${file.name} &mdash; rejected: ${xhr.responseText}`; reject(); }
+    };
+    xhr.onerror = () => { line.innerHTML = `${file.name} &mdash; upload failed`; reject(); };
+    xhr.send(file);
+  });
+}
+
+async function uploadAll(files) {
+  for (const f of files) { try { await upload(f); } catch (e) {} }
+  loadClips();
+}
+
+const drop = () => document.getElementById('drop');
+document.addEventListener('DOMContentLoaded', () => {
+  const d = drop();
+  ['dragenter','dragover'].forEach(ev => d.addEventListener(ev, e => {
+    e.preventDefault(); d.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev => d.addEventListener(ev, e => {
+    e.preventDefault(); d.classList.remove('over'); }));
+  d.addEventListener('drop', e => uploadAll(e.dataTransfer.files));
+  document.getElementById('file').addEventListener('change', e => uploadAll(e.target.files));
+});
 
 (async () => {
   const s = await api('/system');

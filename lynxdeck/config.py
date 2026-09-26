@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 @dataclass
 class Config:
     media_dir: Path = Path("/srv/lynxdeck/media")
-    video_format: str = "1080p50"        # reported to HyperDeck clients
+    video_format: str = "1080p50"        # reported to controllers
     drm_connector: str = "HDMI-A-1"      # HDMI0 on the Pi 4 (port nearest USB-C)
     drm_mode: str = "1920x1080@50"       # HDMI output mode
     timecode_fps: int = 25
@@ -27,8 +27,9 @@ class Config:
     mpv_socket: Path = Path("/tmp/lynxdeck-mpv.sock")
     hyperdeck_port: int = 9993
     http_port: int = 8080
+    max_upload_mb: int = 8192      # refuse anything larger
     api_token: str = ""            # blank = no auth (keep it on a trusted VLAN)
-    model: str = "HyperDeck Studio Mini"
+    model: str = "Lynx Deck"
     protocol_version: str = "1.11"
     unique_id: str = "LYNXDECK0001"
     volume_name: str = "LynxDeck"
