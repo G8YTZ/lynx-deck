@@ -54,7 +54,9 @@ class Engine:
     async def start(self):
         await self.mpv.start()
         if self.library.clips:
-            await self.goto_clip(1)
+            first = self.default_clip_id() or 1
+            await self.goto_clip(first)
+            await self.play()          # the default slide goes to air at boot
         self._supervisor = asyncio.create_task(self._supervise())
         self._watchdog = asyncio.create_task(self._watch())
 
@@ -139,6 +141,10 @@ class Engine:
                 return
             try:
                 async with self._guard(timeout=10):
+                    if want_clip and not self.library.get(want_clip):
+                        want_clip = self.default_clip_id()
+                        want_pos, want_status = 0.0, "play"
+                        log.warning("Previous clip is gone - falling back to the default slide")
                     if want_clip:
                         await self._load(want_clip)
                         clip = self.library.get(want_clip)
@@ -313,9 +319,9 @@ class Engine:
                 else:
                     nxt = self.clip_id + 1
                     if nxt > len(self.library.clips):
-                        idle = self._idle_clip_id()
-                        if idle:
-                            nxt = idle
+                        fallback = self.default_clip_id()
+                        if fallback:
+                            nxt = fallback
                         elif self.loop:
                             nxt = 1
                         else:
@@ -331,9 +337,9 @@ class Engine:
         except (MpvError, ClipNotFound):
             log.exception("Advance failed")
 
-    def _idle_clip_id(self):
-        """The clip to fall back to when the list runs out, if one is configured."""
-        want = str(self.cfg.idle_clip).strip()
+    def default_clip_id(self):
+        """The deck's default slide: booted to, returned to, fallen back to."""
+        want = str(self.cfg.default_clip).strip()
         if not want:
             return None
         if want.isdigit():
@@ -341,7 +347,7 @@ class Engine:
         for c in self.library.clips:
             if c.name == want or c.path.name == want:
                 return c.id
-        log.warning("idle_clip %r not found in the library", want)
+        log.warning("default_clip %r not found in the library", want)
         return None
 
     async def set_flags(self, loop=None, single_clip=None):

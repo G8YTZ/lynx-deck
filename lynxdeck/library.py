@@ -108,7 +108,7 @@ class Library:
             duration = probe["duration"]
             if kind == "still":
                 duration = float(entry.get("duration", self.cfg.still_duration))
-            behaviour = str(entry.get("play", "auto")).lower()
+            behaviour = str(entry.get("play", self.cfg.default_behaviour)).lower()
             if behaviour not in BEHAVIOURS:
                 log.warning("%s: unknown behaviour %r, using auto", p.name, behaviour)
                 behaviour = "auto"

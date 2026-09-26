@@ -5,8 +5,8 @@ family by G8YTZ. It speaks the standard text-based deck control protocol on
 TCP 9993, so Bitfocus Companion and ATEM switchers drive it with no changes
 at the controller end.
 
-**Status:** v0.5 - deck protocol, state engine, mpv playback, watchdog,
-REST API, web UI, media upload and per-clip behaviour.
+**Status:** v0.6 - deck protocol, state engine, mpv playback, watchdog,
+REST API, web UI, media upload, per-clip behaviour and a default slide.
 
 ## Features (v1 target)
 - H.264 and H.265 video, PNG and JPG stills
@@ -79,10 +79,18 @@ Each clip decides what happens when it ends, set from the web UI or stored in
 - `hold` - play once, then stop on the last frame
 - `duration` - how long a still is held before moving on
 
-When the running order finishes, the deck goes to `idle_clip` from the config
-if one is set, otherwise it wraps if the transport loop flag is on, otherwise
-it stops. The controller's own `single clip` flag always takes precedence, so
-Companion and an ATEM still behave exactly as they expect to.
+`default_behaviour` in the config sets what an unmarked clip does. With
+Companion triggers driving the running order, set it to `hold` so nothing
+advances on its own.
+
+## The default slide
+`default_clip` names the clip the deck falls back to - by filename or number.
+It is played at boot, returned to when the running order finishes, and used if
+a clip disappears while the player is restarting. Point it at your test card
+and the deck always ends up showing something sensible, whatever goes wrong.
+
+The controller's own `single clip` flag always takes precedence over per-clip
+behaviour, so Companion and an ATEM behave exactly as they expect to.
 
 ## Media
 Put files in `/srv/lynxdeck/media`. Clip IDs follow filename order, so

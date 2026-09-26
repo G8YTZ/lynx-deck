@@ -55,7 +55,7 @@ def build_app(cfg, engine):
     @app.get("/system")
     async def system():
         return {"model": cfg.model, "protocolVersion": cfg.protocol_version,
-                "idleClip": cfg.idle_clip,
+                "defaultClip": cfg.default_clip,
                 "uniqueId": cfg.unique_id, "softwareVersion": cfg.version,
                 "videoFormat": cfg.video_format, "uptimeSeconds": engine.uptime(),
                 "player": engine.player_state}

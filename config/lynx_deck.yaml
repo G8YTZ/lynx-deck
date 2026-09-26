@@ -32,6 +32,12 @@ http_port: 8080
 api_token: ""             # set a token to require X-Lynx-Token on reboot/rescan
 max_upload_mb: 8192       # largest file the upload endpoint will accept
 
-# Clip to return to when the running order finishes (name or number).
-# Leave blank to stop on the last frame instead.
-idle_clip: ""
+# The deck's default slide (name or number). It is played at boot, returned to
+# when the running order finishes, and fallen back to if a clip goes missing.
+# Leave blank to cue clip 1 and stop instead.
+default_clip: ""
+
+# What an unmarked clip does when it ends: auto | once | loop | hold.
+# Use "hold" when Companion triggers drive the running order, so nothing
+# advances on its own.
+default_behaviour: auto

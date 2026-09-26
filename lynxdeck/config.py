@@ -18,7 +18,8 @@ class Config:
     drm_mode: str = "1920x1080@50"       # HDMI output mode
     timecode_fps: int = 25
     still_duration: float = 10.0         # seconds a still holds when playing through the list
-    idle_clip: str = ""            # clip name or number to return to when the list ends
+    default_clip: str = ""         # clip name or number: booted to, returned to, fallen back to
+    default_behaviour: str = "auto"   # auto | once | loop | hold, for clips with no entry
     hwdec: str = "auto"
     # watchdog
     mpv_timeout: float = 5.0        # max wait for any mpv reply
