@@ -7,7 +7,7 @@ import asyncio
 import logging
 import re
 
-from .engine import ClipNotFound
+from .engine import ClipNotFound, PlayerUnavailable
 from .player import MpvError
 
 log = logging.getLogger(__name__)
@@ -228,6 +228,8 @@ class HyperDeckServer:
             if cmd == "uptime":
                 return block(213, "uptime", {"uptime": str(e.uptime())})
             return simple(100, "syntax error")
+        except PlayerUnavailable:
+            return simple(150, "invalid state")     # restarting or wedged
         except ClipNotFound:
             return simple(109, "out of range")
         except ValueError:

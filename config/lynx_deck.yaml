@@ -20,3 +20,9 @@ model: HyperDeck Studio Mini
 protocol_version: "1.11"
 unique_id: LYNXDECK0001
 volume_name: LynxDeck
+
+# Watchdog
+mpv_timeout: 5            # max wait for any player reply
+watchdog_interval: 2      # how often to check the player is alive
+stall_timeout: 5          # playing but timecode frozen this long = stalled
+report_health: true       # add "player: ok|stalled|restarting" to transport info

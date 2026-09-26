@@ -11,6 +11,10 @@ class MpvError(Exception):
     pass
 
 
+class MpvTimeout(MpvError):
+    """mpv accepted the command but never answered - it is wedged."""
+
+
 class Mpv:
     def __init__(self, cfg, on_event):
         self.cfg = cfg
@@ -88,7 +92,8 @@ class Mpv:
             self._pending.clear()
             self._writer = None
 
-    async def command(self, *args, timeout=5.0):
+    async def command(self, *args, timeout=None):
+        timeout = timeout if timeout is not None else self.cfg.mpv_timeout
         if self._writer is None:
             raise MpvError("mpv not connected")
         self._rid += 1
@@ -99,6 +104,8 @@ class Mpv:
         await self._writer.drain()
         try:
             msg = await asyncio.wait_for(fut, timeout)
+        except asyncio.TimeoutError:
+            raise MpvTimeout(f"{args[0]} timed out after {timeout} s")
         finally:
             self._pending.pop(rid, None)
         if msg.get("error") != "success":
@@ -107,6 +114,20 @@ class Mpv:
 
     async def set(self, prop, value):
         return await self.command("set_property", prop, value)
+
+    async def kill(self):
+        """Hard stop, used by the watchdog when mpv stops answering."""
+        if not self.proc or self.proc.returncode is not None:
+            return
+        try:
+            self.proc.terminate()
+            await asyncio.wait_for(self.proc.wait(), 3)
+        except (asyncio.TimeoutError, ProcessLookupError):
+            try:
+                self.proc.kill()
+                await self.proc.wait()
+            except ProcessLookupError:
+                pass
 
     async def wait(self):
         if self.proc:

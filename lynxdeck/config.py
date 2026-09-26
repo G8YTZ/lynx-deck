@@ -17,6 +17,11 @@ class Config:
     timecode_fps: int = 25
     still_duration: float = 10.0         # seconds a still holds when playing through the list
     hwdec: str = "auto"
+    # watchdog
+    mpv_timeout: float = 5.0        # max wait for any mpv reply
+    watchdog_interval: float = 2.0  # how often to check the player is alive
+    stall_timeout: float = 5.0      # playing but timecode frozen this long = stalled
+    report_health: bool = True      # add a "player" field to transport info
     mpv_socket: Path = Path("/tmp/lynxdeck-mpv.sock")
     hyperdeck_port: int = 9993
     model: str = "HyperDeck Studio Mini"
