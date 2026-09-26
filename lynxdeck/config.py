@@ -21,6 +21,9 @@ class Config:
     default_clip: str = ""         # clip name or number: booted to, returned to, fallen back to
     default_behaviour: str = "auto"   # auto | once | loop | hold, for clips with no entry
     hwdec: str = "auto"
+    # HDMI0 on the Pi 4. The 3.5mm jack is the ALSA default, so this must be set.
+    audio_device: str = "alsa/sysdefault:CARD=vc4hdmi0"
+    volume: int = 100
     # watchdog
     mpv_timeout: float = 5.0        # max wait for any mpv reply
     watchdog_interval: float = 2.0  # how often to check the player is alive

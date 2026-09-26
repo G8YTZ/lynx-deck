@@ -266,6 +266,21 @@ class Engine:
         self.position = 0.0
         self._eof = False
         log.info("Cued clip %d: %s", clip.id, clip.name)
+        if clip.kind == "video":
+            self._spawn(self._log_decoder(clip.name))
+
+    async def _log_decoder(self, name):
+        """Say plainly whether the hardware decoder is doing the work."""
+        await asyncio.sleep(1.0)
+        try:
+            dec = await self.mpv.command("get_property", "video-codec")
+            hw = await self.mpv.command("get_property", "hwdec-current")
+        except MpvError:
+            return
+        if hw and hw not in ("no", "none"):
+            log.info("%s: %s decoded in hardware (%s)", name, dec, hw)
+        else:
+            log.warning("%s: %s decoded in SOFTWARE - expect trouble above 1080p", name, dec)
 
     async def _apply_loop(self, clip):
         # mpv loops the file itself, which makes it seamless (no reload gap).

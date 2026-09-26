@@ -32,6 +32,9 @@ class Mpv:
             f"--drm-connector={self.cfg.drm_connector}",
             f"--drm-mode={self.cfg.drm_mode}",
             f"--hwdec={self.cfg.hwdec}",
+            f"--audio-device={self.cfg.audio_device}",
+            f"--volume={self.cfg.volume}",
+            "--audio-fallback-to-null=yes",   # a silent clip must never stop the picture
             "--fullscreen", "--keep-open=always", "--image-display-duration=inf",
             "--video-sync=display-resample", "--pause=yes",
             "--osc=no", "--osd-level=0", "--no-input-default-bindings",

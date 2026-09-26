@@ -5,7 +5,7 @@ family by G8YTZ. It speaks the standard text-based deck control protocol on
 TCP 9993, so Bitfocus Companion and ATEM switchers drive it with no changes
 at the controller end.
 
-**Status:** v0.6 - deck protocol, state engine, mpv playback, watchdog,
+**Status:** v0.7 - deck protocol, state engine, mpv playback, watchdog,
 REST API, web UI, media upload, per-clip behaviour and a default slide.
 
 ## Features (v1 target)
@@ -82,6 +82,12 @@ Each clip decides what happens when it ends, set from the web UI or stored in
 `default_behaviour` in the config sets what an unmarked clip does. With
 Companion triggers driving the running order, set it to `hold` so nothing
 advances on its own.
+
+## Audio
+The Pi's ALSA default is the 3.5mm headphone jack, so HDMI audio must be named
+explicitly. `audio_device` defaults to HDMI0 (`vc4hdmi0`, the port nearest the
+USB-C socket). Use `aplay -l` to confirm the card names on your board. The
+startup log also reports whether each video is being decoded in hardware.
 
 ## The default slide
 `default_clip` names the clip the deck falls back to - by filename or number.

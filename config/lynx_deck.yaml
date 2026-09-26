@@ -41,3 +41,8 @@ default_clip: ""
 # Use "hold" when Companion triggers drive the running order, so nothing
 # advances on its own.
 default_behaviour: auto
+
+# Audio output. The Pi's ALSA default is the 3.5mm jack, so HDMI must be named.
+# HDMI0 (the port nearest USB-C) is vc4hdmi0; the other port is vc4hdmi1.
+audio_device: "alsa/sysdefault:CARD=vc4hdmi0"
+volume: 100
