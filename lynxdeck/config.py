@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yaml
 
+from . import __version__
+
 log = logging.getLogger(__name__)
 
 
@@ -24,10 +26,13 @@ class Config:
     report_health: bool = True      # add a "player" field to transport info
     mpv_socket: Path = Path("/tmp/lynxdeck-mpv.sock")
     hyperdeck_port: int = 9993
+    http_port: int = 8080
+    api_token: str = ""            # blank = no auth (keep it on a trusted VLAN)
     model: str = "HyperDeck Studio Mini"
     protocol_version: str = "1.11"
     unique_id: str = "LYNXDECK0001"
     volume_name: str = "LynxDeck"
+    version: str = __version__
 
 
 def load(path) -> Config:

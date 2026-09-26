@@ -167,6 +167,12 @@ class Engine:
     def add_listener(self, callback):
         self._listeners.append(callback)
 
+    def notify_library_changed(self):
+        """Library rescanned: clip IDs may have moved, so tell the clients."""
+        if self.clip_id and self.clip_id > len(self.library.clips):
+            self.clip_id = len(self.library.clips) or None
+        self._notify()
+
     def _notify(self):
         for cb in self._listeners:
             try:

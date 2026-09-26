@@ -8,6 +8,7 @@ from . import __version__, config
 from .engine import Engine
 from .hyperdeck_server import HyperDeckServer
 from .library import Library
+from .rest_api import serve as serve_http
 
 log = logging.getLogger("lynxdeck")
 
@@ -19,6 +20,7 @@ async def run(cfg):
     await engine.start()
     server = HyperDeckServer(cfg, engine)
     await server.start()
+    http_task = asyncio.create_task(serve_http(cfg, engine))
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -27,6 +29,7 @@ async def run(cfg):
     await stop.wait()
 
     log.info("Shutting down")
+    http_task.cancel()
     await server.close()
     await engine.close()
 
