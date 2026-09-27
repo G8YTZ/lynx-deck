@@ -28,6 +28,10 @@ the command lock is never held indefinitely, and a separate watchdog task:
 can see trouble instead of a cheerful "connected". Set `report_health: false`
 to suppress it.
 
+## Documentation
+- `docs/Lynx_Deck_Installation_Guide.docx` - blank SD card to working deck
+- `docs/Lynx_Deck_Web_Interface_Guide.docx` - day-to-day operation
+
 ## Requirements
 Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop.
 
