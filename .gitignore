@@ -5,3 +5,6 @@ media/
 .venv/
 config/state.json
 .DS_Store
+config/lynx_deck.yaml
+config/state.json
+.DS_Store
