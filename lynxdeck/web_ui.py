@@ -1,6 +1,6 @@
 """The web UI, served as a single self-contained page."""
 
-PAGE = """<!doctype html>
+PAGE = r"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -217,7 +217,14 @@ async function loadStatus() {
 
     let out = o.connected ? (o.mode || '?') : 'no display connected';
     if (o.refresh) out += ` @ ${o.refresh.toFixed(2)} Hz`;
-    if (o.configured) out += ` \u00b7 reported as ${o.configured}`;
+    if (o.source) out += ` <span class="muted">(${o.source})</span>`;
+    if (o.configured) {
+      // does what we tell controllers match what we are actually sending?
+      const m = String(o.configured).match(/(\d+)p(\d+)/);
+      const mismatch = m && o.refresh && Math.abs(Number(m[2]) - o.refresh) > 1;
+      out += ` \u00b7 reported as <span class="${mismatch ? 'warn' : ''}">${o.configured}</span>`;
+      if (mismatch) out += ' <span class="warn">- does not match the output</span>';
+    }
     document.getElementById('s-output').innerHTML =
       o.connected ? out : `<span class="warn">${out}</span>`;
 

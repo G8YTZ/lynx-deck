@@ -43,24 +43,32 @@ async def output(cfg):
             info["mode"] = modes[0]
     except OSError:
         pass
-    # modetest reports the refresh rate, which the sysfs modes list does not
+    # Which mode is in use cannot be read from the CRTC while the player
+    # holds DRM master, so use the connector's mode list instead. A "userdef"
+    # mode is one created by a video= kernel argument, which is how the output
+    # standard is set here - so that is the one we are running. The
+    # "preferred" flag is only the monitor's own EDID opinion.
     ok, out = await _run("modetest", "-M", "vc4", "-c")
     if ok:
-        section = False
+        section, first = False, None
         for line in out.splitlines():
-            if cfg.drm_connector in line and "connected" in line:
-                section = True
+            if re.match(r"\d+\s+\d+\s+(dis)?connected\s+", line):
+                section = cfg.drm_connector in line
                 continue
-            if section:
-                m = re.match(r"\s+#(\d+)\s+(\d+x\d+)\s+([\d.]+)", line)
-                if m and "preferred" in line or (m and m.group(1) == "0"):
-                    info["mode"], info["refresh"] = m.group(2), float(m.group(3))
-                    break
-                if m:
-                    info.setdefault("_first", (m.group(2), float(m.group(3))))
-    if info["refresh"] is None and info.get("_first"):
-        info["mode"], info["refresh"] = info.pop("_first")
-    info.pop("_first", None)
+            if not section:
+                continue
+            m = re.match(r"\s+#(\d+)\s+(\d+x\d+)\s+([\d.]+)", line)
+            if not m:
+                continue
+            if first is None:
+                first = (m.group(2), float(m.group(3)))
+            if "userdef" in line:
+                info["mode"], info["refresh"] = m.group(2), float(m.group(3))
+                info["source"] = "set at boot"
+                break
+        if info["refresh"] is None and first:
+            info["mode"], info["refresh"] = first
+            info["source"] = "monitor preferred"
     return info
 
 
