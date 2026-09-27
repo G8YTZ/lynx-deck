@@ -1,18 +1,54 @@
 # Lynx Deck
 
-A networked media playback server for the Raspberry Pi 4, part of the Lynx
-family by G8YTZ. It speaks the standard text-based deck control protocol on
-TCP 9993, so Bitfocus Companion and ATEM switchers drive it with no changes
-at the controller end.
+A media player for amateur television repeaters, running on a Raspberry Pi 4.
 
-**Status:** v0.8 - deck protocol, state engine, mpv playback, watchdog,
-REST API, web UI, media upload, per-clip behaviour and a default slide.
+It plays video and stills to an HDMI output and is controlled by Bitfocus
+Companion or an ATEM switcher over the standard text-based deck control
+protocol on TCP 9993, so existing workflows need no changes at the controller
+end. Clip changes are instant and the HDMI output never drops, which matters
+when a switcher or an HDMI extender is downstream.
 
-## Features (v1 target)
-- H.264 and H.265 video, PNG and JPG stills
-- 1080p HDMI output (4K/HDR planned for v2)
-- Deck protocol playback subset: play, stop, goto, loop, single clip, clip list, notify
-- REST API, web UI, drag-and-drop upload, self-healing player watchdog
+Built by Justin Cockett, G8YTZ, for the GB3OO and GB3JT amateur television
+repeaters, and released under the GPL for anyone running an ATV repeater who
+wants a deck they can maintain themselves.
+
+## What it does
+- **Plays** H.264 and H.265 video, and PNG and JPG stills, at 1080p
+- **Decodes in hardware** on the Pi 4's HEVC block, using about 20% of one CPU
+- **Cuts between clips instantly**, with no HDMI renegotiation or black gap
+- **Takes control** from Companion or an ATEM: play, stop, goto, loop, single
+  clip, clip list and notifications
+- **Uploads over the network**, with drag-and-drop in the browser and every
+  file checked before it can reach air
+- **Runs a web interface** for transport, media, settings, status, reboot and
+  software update
+- **Looks after itself**: a watchdog restarts a wedged player, the transport is
+  restored where it left off, and the deck falls back to a default slide if a
+  clip goes missing
+- **Reboots and updates remotely**, because a repeater site is rarely next door
+
+## Per-clip behaviour
+Each clip decides what happens when it ends - move on, repeat, or hold the last
+frame - so a test card can sit on air indefinitely while idents play through.
+
+## Hardware
+A Raspberry Pi 4, an SD card, and a micro-HDMI cable to your switcher. The Pi 4
+is a 1080p deck: it decodes 1080p HEVC with four to six times the headroom it
+needs, but 4K is beyond it.
+
+## Documentation
+- `docs/Lynx_Deck_Installation_Guide.docx` - blank SD card to working deck
+- `docs/Lynx_Deck_Web_Interface_Guide.docx` - day-to-day operation
+
+## Quick start
+    sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi python3-uvicorn
+    git clone https://github.com/G8YTZ/lynx-deck.git ~/lynx-deck
+    cd ~/lynx-deck && cp config/lynx_deck.yaml.example config/lynx_deck.yaml
+    sudo cp systemd/lynx-deck.service /etc/systemd/system/
+    sudo systemctl enable --now lynx-deck
+
+The installation guide covers the rest: the HDMI output standard, audio
+routing, the media folder and the maintenance permissions.
 
 ## Watchdog
 The control protocol never depends on the player. Every mpv call has a timeout,
