@@ -40,6 +40,12 @@ PAGE = """<!doctype html>
   select { background:#2a2a2a; color:var(--text); border:1px solid var(--line);
            border-radius:5px; padding:4px 6px; font-size:13px; }
   .del { color:#888; cursor:pointer; }
+  table.kv th { width:150px; opacity:.6; font-weight:600; vertical-align:top; }
+  table.kv td { font-size:14px; }
+  table.kv td, table.kv th { border-bottom:1px solid #262626; padding:7px 10px 7px 0; }
+  input[type=number] { background:#2a2a2a; color:var(--text); border:1px solid var(--line);
+                       border-radius:5px; padding:5px 8px; width:90px; font-size:13px; }
+  .warn { color:#ffb454; }
   .del:hover { color:var(--red); }
 </style>
 </head>
@@ -88,6 +94,48 @@ PAGE = """<!doctype html>
   </div>
 
   <div class="panel">
+    <div class="row" style="justify-content:space-between; margin-bottom:10px">
+      <strong>Status</strong>
+      <span class="muted" id="statusline"></span>
+    </div>
+    <table class="kv">
+      <tr><th>Output</th><td id="s-output">-</td></tr>
+      <tr><th>Playing</th><td id="s-clip">-</td></tr>
+      <tr><th>Controllers</th><td id="s-ctrl">-</td></tr>
+      <tr><th>Network</th><td id="s-net">-</td></tr>
+      <tr><th>Player</th><td id="s-health">-</td></tr>
+    </table>
+    <div class="row" style="margin-top:12px">
+      <button class="ghost" id="wifibtn" onclick="toggleWifi()">Wi-Fi</button>
+      <span class="muted">Wi-Fi off avoids a second route at a repeater site.</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <strong>Settings</strong>
+    <table class="kv" style="margin-top:8px">
+      <tr><th>Default clip</th><td>
+        <select id="set-defaultClip"></select></td></tr>
+      <tr><th>Default behaviour</th><td>
+        <select id="set-defaultBehaviour">
+          <option value="auto">auto - move on to the next clip</option>
+          <option value="once">once - same as auto</option>
+          <option value="loop">loop - repeat this clip</option>
+          <option value="hold">hold - stop on the last frame</option>
+        </select></td></tr>
+      <tr><th>Still duration</th><td>
+        <input type="number" id="set-stillDuration" min="1" max="3600" step="1"> seconds
+        <span class="muted">(only used by auto)</span></td></tr>
+      <tr><th>Volume</th><td>
+        <input type="number" id="set-volume" min="0" max="130" step="1"> %</td></tr>
+    </table>
+    <div class="row" style="margin-top:12px">
+      <button onclick="saveSettings()">Save settings</button>
+      <span class="muted" id="setmsg"></span>
+    </div>
+  </div>
+
+  <div class="panel">
     <strong>Maintenance</strong>
     <div class="row" style="margin-top:10px">
       <button class="ghost" onclick="restartPlayer()">Restart player</button>
@@ -96,7 +144,7 @@ PAGE = """<!doctype html>
       <button onclick="reboot()">Reboot deck</button>
     </div>
     <div class="muted" id="updinfo" style="margin-top:8px">Reboot takes about 30 seconds.</div>
-    <div class="muted" id="health" style="margin-top:4px"></div>
+
   </div>
 </main>
 <script>
@@ -161,13 +209,82 @@ async function doUpdate() {
   } catch (e) { info.textContent = 'Update failed: ' + e.message; }
 }
 
-async function showHealth() {
+async function loadStatus() {
   try {
-    const h = await api('/player/health');
-    document.getElementById('health').textContent =
-      `Decoder drops: ${h.decoderDrops} \u00b7 Late frames: ${h.lateFrames}`;
-  } catch (e) {}
+    const [o, n, c, h] = await Promise.all([
+      api('/system/output'), api('/system/network'),
+      api('/system/controllers'), api('/player/health')]);
+
+    let out = o.connected ? (o.mode || '?') : 'no display connected';
+    if (o.refresh) out += ` @ ${o.refresh.toFixed(2)} Hz`;
+    if (o.configured) out += ` \u00b7 reported as ${o.configured}`;
+    document.getElementById('s-output').innerHTML =
+      o.connected ? out : `<span class="warn">${out}</span>`;
+
+    document.getElementById('s-clip').textContent = o.clip
+      ? `${o.clip.name} \u00b7 ${o.clip.kind} ${o.clip.codec} \u00b7 at end: ${o.clip.behaviour}`
+      : 'nothing cued';
+
+    const ctrl = c.controllers || [];
+    document.getElementById('s-ctrl').innerHTML = ctrl.length
+      ? ctrl.map(x => `${x.address} \u00b7 last: ${x.lastCommand || '-'} ` +
+          `(${x.secondsSinceLastCommand}s ago)`).join('<br>')
+      : '<span class="warn">none connected</span>';
+
+    document.getElementById('s-net').innerHTML =
+      (n.interfaces || []).map(i =>
+        `${i.name} ${i.address} <span class="muted">(${i.state})</span>`).join('<br>')
+      + (n.wifiBlocked === true ? '<br><span class="muted">Wi-Fi blocked</span>' : '');
+    const wb = document.getElementById('wifibtn');
+    wb.textContent = n.wifiBlocked ? 'Enable Wi-Fi' : 'Disable Wi-Fi';
+    wb.dataset.enable = n.wifiBlocked ? '1' : '0';
+
+    const bad = (h.decoderDrops || h.lateFrames);
+    document.getElementById('s-health').innerHTML =
+      `<span class="${bad ? 'warn' : ''}">decoder drops ${h.decoderDrops} \u00b7 ` +
+      `late frames ${h.lateFrames}</span>`;
+    document.getElementById('statusline').textContent = '';
+  } catch (e) {
+    document.getElementById('statusline').textContent = 'status unavailable';
+  }
 }
+
+async function toggleWifi() {
+  const on = document.getElementById('wifibtn').dataset.enable === '1';
+  if (!on && !confirm('Disable Wi-Fi? Only do this if the deck is on Ethernet.')) return;
+  try { await api('/system/wifi', 'POST', {enabled: on}); }
+  catch (e) { alert(e.message); }
+  loadStatus();
+}
+
+async function loadSettings() {
+  const s = await api('/settings');
+  const clips = await api('/media/workingset');
+  const sel = document.getElementById('set-defaultClip');
+  sel.innerHTML = '<option value="">(none - cue clip 1 and stop)</option>' +
+    clips.workingset.map(c =>
+      `<option value="${c.name}" ${c.name === s.defaultClip ? 'selected' : ''}>${c.name}</option>`).join('');
+  document.getElementById('set-defaultBehaviour').value = s.defaultBehaviour;
+  document.getElementById('set-stillDuration').value = s.stillDuration;
+  document.getElementById('set-volume').value = s.volume;
+}
+
+async function saveSettings() {
+  const msg = document.getElementById('setmsg');
+  msg.textContent = 'Saving...';
+  try {
+    await api('/settings', 'PUT', {
+      defaultClip: document.getElementById('set-defaultClip').value,
+      defaultBehaviour: document.getElementById('set-defaultBehaviour').value,
+      stillDuration: Number(document.getElementById('set-stillDuration').value),
+      volume: Number(document.getElementById('set-volume').value),
+    });
+    msg.textContent = 'Saved.';
+    setTimeout(() => msg.textContent = '', 3000);
+  } catch (e) { msg.textContent = 'Failed: ' + e.message; }
+}
+
+
 async function reboot() {
   if (confirm('Reboot the deck now?')) await api('/system/reboot', 'POST');
 }
@@ -262,9 +379,10 @@ document.addEventListener('DOMContentLoaded', () => {
   await loadClips();
   refresh();
   checkUpdate();
-  showHealth();
+  loadStatus();
+  loadSettings();
   setInterval(refresh, 1000);
-  setInterval(showHealth, 10000);
+  setInterval(loadStatus, 5000);
 })();
 </script>
 </body>

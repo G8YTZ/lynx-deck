@@ -9,19 +9,22 @@ from . import __version__, config
 from .engine import Engine
 from .deck_protocol import DeckServer
 from .library import Library
+from .state import State
 from .rest_api import serve as serve_http
 
 log = logging.getLogger("lynxdeck")
 
 
 async def run(cfg):
+    state = State(cfg)
+    state.load_into_config()
     library = Library(cfg)
     await library.scan()
     engine = Engine(cfg, library)
     await engine.start()
     server = DeckServer(cfg, engine)
     await server.start()
-    http_task = asyncio.create_task(serve_http(cfg, engine))
+    http_task = asyncio.create_task(serve_http(cfg, engine, server, state))
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()

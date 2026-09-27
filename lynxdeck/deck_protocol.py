@@ -10,6 +10,7 @@ Accepts both single-line ("play: speed: 100 loop: true") and multi-line
 import asyncio
 import logging
 import re
+import time
 
 from .engine import ClipNotFound, PlayerUnavailable
 from .player import PlayerError
@@ -67,6 +68,9 @@ def as_bool(value):
 class Session:
     def __init__(self, writer):
         self.writer = writer
+        self.connected_at = time.monotonic()
+        self.last_seen = time.monotonic()
+        self.last_command = None
         self.notify = {k: False for k in NOTIFY_KEYS}
         self.peer = writer.get_extra_info("peername")
         self.busy = False      # while a command runs, async messages wait
@@ -96,6 +100,21 @@ class DeckServer:
             await self.server.wait_closed()
         for s in list(self.sessions):
             s.writer.close()
+
+    def controllers(self):
+        """Who is connected, and how recently they spoke."""
+        now = time.monotonic()
+        out = []
+        for s in self.sessions:
+            host = s.peer[0] if isinstance(s.peer, tuple) else str(s.peer)
+            out.append({
+                "address": host,
+                "connectedFor": int(now - s.connected_at),
+                "lastCommand": s.last_command,
+                "secondsSinceLastCommand": round(now - s.last_seen, 1),
+                "notifications": [k for k, v in s.notify.items() if v],
+            })
+        return sorted(out, key=lambda c: c["secondsSinceLastCommand"])
 
     def _on_transport_change(self):
         text = block(508, "transport info", self.engine.transport_info())
@@ -134,6 +153,8 @@ class DeckServer:
                     continue
                 else:
                     cmd, params = parse_line(line)
+                s.last_seen = time.monotonic()
+                s.last_command = cmd
                 log.debug("%s -> %s %s", s.peer, cmd, params)
                 if cmd == "quit":
                     break

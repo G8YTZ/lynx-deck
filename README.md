@@ -35,7 +35,7 @@ Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop.
 
 Allow the reboot and update endpoints to work without a password:
 
-    echo "$USER ALL=(root) NOPASSWD: /sbin/shutdown, /usr/bin/systemctl restart lynx-deck" | sudo tee /etc/sudoers.d/lynxdeck
+    echo "$USER ALL=(root) NOPASSWD: /sbin/shutdown, /usr/bin/systemctl restart lynx-deck, /usr/sbin/rfkill" | sudo tee /etc/sudoers.d/lynxdeck
     sudo chmod 440 /etc/sudoers.d/lynxdeck
 
 ## Web UI and REST API
@@ -49,6 +49,11 @@ Browse to `http://<deck>:8080`. Endpoints:
 | GET | `/system/update` | installed version, and whether the remote has anything newer |
 | POST | `/system/update` | pull and restart (fast-forward only) |
 | GET | `/player/health` | decoder drops and late frames |
+| GET | `/system/output` | real HDMI mode and refresh rate, and what is playing |
+| GET | `/system/network` | interfaces, addresses, whether Wi-Fi is blocked |
+| POST | `/system/wifi` | body: `{"enabled":false}`; refuses if Ethernet is down |
+| GET | `/system/controllers` | who is connected and what they last sent |
+| GET/PUT | `/settings` | default clip, behaviour, still duration, volume |
 | GET | `/media/workingset` | clip list |
 | POST | `/media/rescan` | rescan the media folder |
 | GET | `/transports/0` | transport state |
@@ -107,6 +112,28 @@ image, because the video bypasses mpv's renderer and it cannot verify
 presentations. Ignore it. The meaningful counters, exposed at
 `/player/health`, are `decoder-frame-drop-count` and `vo-delayed-frame-count`;
 both stay at zero when all is well.
+
+## Status and settings panels
+The web UI shows what the deck is actually doing rather than what the config
+claims: the real HDMI mode and refresh rate read from the kernel, the playing
+clip's codec and behaviour, which controllers are connected and how long since
+each last spoke, the network interfaces, and the player health counters.
+
+Day-to-day settings - default clip, default behaviour, still duration and
+volume - are edited there too. They are saved to `config/state.json` and
+applied over the config at startup, so the config file stays as install-time
+defaults and is never rewritten.
+
+Still duration only applies to clips set to `auto`; `loop` and `hold` hold a
+still indefinitely.
+
+## Networking at a repeater site
+Use a DHCP reservation rather than a static address on the deck: addressing
+stays in one place and survives a reimage.
+
+Wi-Fi is best disabled so there is no second route. The UI has a button, which
+refuses if Ethernet is not up. To disable the radio permanently, add
+`dtoverlay=disable-wifi` to `/boot/firmware/config.txt`.
 
 ## Software update
 The web UI has a Check for updates button, and an Update and restart button

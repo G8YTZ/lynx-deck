@@ -42,6 +42,7 @@ class Config:
     hyperdeck_port: int = 9993
     http_port: int = 8080
     max_upload_mb: int = 8192      # refuse anything larger
+    state_file: str = "config/state.json"
     repo_dir: str = ""             # blank = the directory this package lives in
     api_token: str = ""            # blank = no auth (keep it on a trusted VLAN)
     model: str = "Lynx Deck"

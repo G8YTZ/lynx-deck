@@ -60,3 +60,7 @@ load_timeout: 5           # max wait for a clip to load before play is allowed
 # Where the git checkout lives, for the web UI's update button.
 # Blank means the directory this package sits in, which is usually right.
 repo_dir: ""
+
+# Day-to-day settings (default clip, behaviour, still duration, volume) are
+# edited in the web UI and saved here, then applied over this file at startup.
+state_file: "config/state.json"

@@ -17,6 +17,7 @@ from . import __version__
 from .engine import ClipNotFound, PlayerUnavailable
 from .library import STILL_EXT, VIDEO_EXT, _probe
 from .player import PlayerError
+from . import sysinfo
 from .web_ui import PAGE
 
 SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]")
@@ -26,7 +27,7 @@ OK_CODECS = {"h264", "hevc", "png", "mjpeg"}
 log = logging.getLogger(__name__)
 
 
-def build_app(cfg, engine):
+def build_app(cfg, engine, deck_server=None, state=None):
     app = FastAPI(title="Lynx Deck", docs_url="/api/docs")
 
     def check(token):
@@ -77,6 +78,62 @@ def build_app(cfg, engine):
 
     def repo_dir():
         return cfg.repo_dir or str(Path(__file__).resolve().parent.parent)
+
+    @app.get("/system/output")
+    async def output():
+        """What the HDMI output is really doing, and what is playing on it."""
+        info = await sysinfo.output(cfg)
+        clip = engine.library.get(engine.clip_id)
+        if clip:
+            info["clip"] = {"name": clip.name, "kind": clip.kind,
+                            "codec": clip.codec, "behaviour": clip.behaviour}
+        return info
+
+    @app.get("/system/network")
+    async def network():
+        return await sysinfo.network()
+
+    @app.post("/system/wifi")
+    async def wifi(body: dict, x_lynx_token: str = Header(default=None)):
+        """Block or unblock Wi-Fi. Refuses to disable the link you are using."""
+        check(x_lynx_token)
+        enabled = bool(body.get("enabled"))
+        if not enabled:
+            net = await sysinfo.network()
+            if not net["ethernetUp"]:
+                raise HTTPException(
+                    409, "Ethernet is not up - disabling Wi-Fi would cut you off")
+        if not await sysinfo.set_wifi(enabled):
+            raise HTTPException(500, "rfkill failed - check the sudoers entry")
+        return await sysinfo.network()
+
+    @app.get("/system/controllers")
+    async def controllers():
+        """Companion, ATEM or anything else talking the deck protocol."""
+        if deck_server is None:
+            return {"controllers": []}
+        return {"controllers": deck_server.controllers()}
+
+    @app.get("/settings")
+    async def get_settings():
+        if state is None:
+            raise HTTPException(503, "settings unavailable")
+        return state.current()
+
+    @app.put("/settings")
+    async def put_settings(body: dict, x_lynx_token: str = Header(default=None)):
+        """Change the day-to-day settings; they survive a restart."""
+        check(x_lynx_token)
+        if state is None:
+            raise HTTPException(503, "settings unavailable")
+        try:
+            applied = state.save(body)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        await engine.library.scan()
+        engine.notify_library_changed()
+        log.info("Settings changed: %s", applied)
+        return state.current()
 
     @app.get("/system/update")
     async def update_status():
@@ -292,9 +349,9 @@ def build_app(cfg, engine):
     return app
 
 
-async def serve(cfg, engine):
+async def serve(cfg, engine, deck_server=None, state=None):
     import uvicorn
-    app = build_app(cfg, engine)
+    app = build_app(cfg, engine, deck_server, state)
     config = uvicorn.Config(app, host="0.0.0.0", port=cfg.http_port,
                             log_level="warning", access_log=False)
     server = uvicorn.Server(config)
