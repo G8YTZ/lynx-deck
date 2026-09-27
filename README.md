@@ -41,11 +41,24 @@ needs, but 4K is beyond it.
 - `docs/Lynx_Deck_Web_Interface_Guide.docx` - day-to-day operation
 
 ## Quick start
-    sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi python3-uvicorn
+    sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi \
+                        python3-uvicorn libdrm-tests
     git clone https://github.com/G8YTZ/lynx-deck.git ~/lynx-deck
-    cd ~/lynx-deck && cp config/lynx_deck.yaml.example config/lynx_deck.yaml
-    sudo cp systemd/lynx-deck.service /etc/systemd/system/
-    sudo systemctl enable --now lynx-deck
+    cd ~/lynx-deck && ./scripts/install.sh
+
+The install script writes the service for whatever account you are logged in
+as, creates the config and media folder, grants the few permissions the
+maintenance buttons need, and tells you if the HDMI output standard has not
+been set. It is safe to run again after an update.
+
+Set the output standard once, in `/boot/firmware/cmdline.txt` on the single
+line, then reboot:
+
+    video=HDMI-A-1:1920x1080@50e
+
+Without it the monitor's own preference wins, which is usually 60 Hz, and the
+status panel will flag the mismatch. Use `@25e` for a 1080p25 plant if your
+equipment takes it; 50 Hz is the safer choice and an ATEM converts on input.
 
 The installation guide covers the rest: the HDMI output standard, audio
 routing, the media folder and the maintenance permissions.

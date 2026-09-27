@@ -1,14 +1,17 @@
+# This unit assumes the account is called "pi" and the checkout is at
+# ~/lynx-deck. If either differs, do not edit this by hand - run
+# scripts/install.sh instead, which writes the unit for whoever runs it.
 [Unit]
 Description=Lynx Deck - networked media player
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-User=lynx
-Group=lynx
+User=pi
+Group=pi
 SupplementaryGroups=video render audio input
-WorkingDirectory=/home/lynx/lynx-deck
-ExecStart=/usr/bin/python3 -m lynxdeck --config /home/lynx/lynx-deck/config/lynx_deck.yaml
+WorkingDirectory=/home/pi/lynx-deck
+ExecStart=/usr/bin/python3 -m lynxdeck --config /home/pi/lynx-deck/config/lynx_deck.yaml
 Restart=always
 RestartSec=3
 TimeoutStopSec=20

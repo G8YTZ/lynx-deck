@@ -76,6 +76,19 @@ def build_app(cfg, engine, deck_server=None, state=None):
             return False, f"{args[0]} timed out"
         return proc.returncode == 0, out.decode("utf-8", "replace").strip()
 
+    async def _dirty(path):
+        """Modified tracked files, ignoring the operator's own config.
+
+        A checkout made before the config was untracked would otherwise count
+        an edited lynx_deck.yaml as a local change and refuse to update.
+        """
+        ok, out = await _run("git", "status", "--porcelain",
+                             "--untracked-files=no", cwd=path)
+        lines = [ln for ln in out.splitlines()
+                 if ln.strip() and "config/lynx_deck.yaml" not in ln
+                 and "config/state.json" not in ln]
+        return ok, "\n".join(lines)
+
     def repo_dir():
         return cfg.repo_dir or str(Path(__file__).resolve().parent.parent)
 
@@ -144,7 +157,7 @@ def build_app(cfg, engine, deck_server=None, state=None):
                     "detail": "not a git checkout"}
         _, branch = await _run("git", "rev-parse", "--abbrev-ref", "HEAD", cwd=repo_dir())
         _, subject = await _run("git", "log", "-1", "--pretty=%s", cwd=repo_dir())
-        _, dirty = await _run("git", "status", "--porcelain", cwd=repo_dir())
+        _, dirty = await _dirty(repo_dir())
         fetched, fetch_out = await _run("git", "fetch", "--quiet", cwd=repo_dir(), timeout=60)
         behind = 0
         if fetched:
@@ -166,10 +179,16 @@ def build_app(cfg, engine, deck_server=None, state=None):
         history has diverged, it refuses rather than guessing.
         """
         check(x_lynx_token)
-        _, dirty = await _run("git", "status", "--porcelain",
-                              "--untracked-files=no", cwd=repo_dir())
+        _, dirty = await _dirty(repo_dir())
         if dirty:
             raise HTTPException(409, f"local changes present:\n{dirty}")
+        # if an older checkout still tracks the config, take it out of the way
+        tracked, _ = await _run("git", "ls-files", "--error-unmatch",
+                                "config/lynx_deck.yaml", cwd=repo_dir())
+        if tracked:
+            await _run("git", "rm", "--cached", "-q",
+                       "config/lynx_deck.yaml", cwd=repo_dir())
+            log.warning("Untracked config/lynx_deck.yaml so updates are not blocked")
         ok, out = await _run("git", "pull", "--ff-only", cwd=repo_dir(), timeout=180)
         if not ok:
             raise HTTPException(500, f"update failed:\n{out}")
