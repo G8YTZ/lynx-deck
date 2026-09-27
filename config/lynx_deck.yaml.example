@@ -21,6 +21,9 @@ hwdec: drm
 drm_draw_plane: primary
 drm_video_plane: overlay
 mpv_socket: /tmp/lynxdeck-mpv.sock
+
+# Shown when there are no clips at all, so the console never reaches air.
+blank_source: "av://lavfi:color=c=black:s=1920x1080:r=25"
 poll_interval: 0.5
 
 # Deck identity

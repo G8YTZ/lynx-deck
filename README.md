@@ -85,6 +85,7 @@ Browse to `http://<deck>:8080`. Endpoints:
 |---|---|---|
 | GET | `/system` | model, version, uptime, player health |
 | POST | `/system/reboot` | reboot the deck |
+| POST | `/system/shutdown` | shut down cleanly before removing power |
 | POST | `/system/restartPlayer` | rebuild mpv without rebooting |
 | GET | `/system/update` | installed version, and whether the remote has anything newer |
 | POST | `/system/update` | pull and restart (fast-forward only) |
@@ -166,6 +167,12 @@ defaults and is never rewritten.
 
 Still duration only applies to clips set to `auto`; `loop` and `hold` hold a
 still indefinitely.
+
+## With no media
+If the media folder is empty - at boot, or because the last clip was deleted -
+the deck puts black on the output rather than letting the Linux console reach
+whatever is downstream. Everything else keeps running, so you can still upload
+a clip through the web interface to recover.
 
 ## Networking at a repeater site
 Use a DHCP reservation rather than a static address on the deck: addressing

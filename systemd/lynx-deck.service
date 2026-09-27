@@ -11,6 +11,7 @@ WorkingDirectory=/home/lynx/lynx-deck
 ExecStart=/usr/bin/python3 -m lynxdeck --config /home/lynx/lynx-deck/config/lynx_deck.yaml
 Restart=always
 RestartSec=3
+TimeoutStopSec=20
 
 [Install]
 WantedBy=multi-user.target

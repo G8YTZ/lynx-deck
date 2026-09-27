@@ -142,8 +142,9 @@ PAGE = r"""<!doctype html>
       <button class="ghost" onclick="checkUpdate()">Check for updates</button>
       <button id="updbtn" onclick="doUpdate()" style="display:none">Update &amp; restart</button>
       <button onclick="reboot()">Reboot deck</button>
+      <button onclick="shutdown()">Shut down</button>
     </div>
-    <div class="muted" id="updinfo" style="margin-top:8px">Reboot takes about 30 seconds.</div>
+    <div class="muted" id="updinfo" style="margin-top:8px">Reboot takes about 30 seconds. Always shut down before removing power.</div>
 
   </div>
 </main>
@@ -294,6 +295,13 @@ async function saveSettings() {
 
 async function reboot() {
   if (confirm('Reboot the deck now?')) await api('/system/reboot', 'POST');
+}
+
+async function shutdown() {
+  if (!confirm('Shut the deck down? It will need the power cycling to start again.')) return;
+  await api('/system/shutdown', 'POST');
+  document.getElementById('updinfo').textContent =
+    'Shutting down. Wait for the activity light to stop before removing power.';
 }
 
 function paint(t) {

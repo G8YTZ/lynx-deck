@@ -25,6 +25,8 @@ class Config:
     drm_draw_plane: str = "primary"
     drm_video_plane: str = "overlay"
     mpv_socket: str = "/tmp/lynxdeck-mpv.sock"
+    # shown when there are no clips, so the console never reaches the output
+    blank_source: str = "av://lavfi:color=c=black:s=1920x1080:r=25"
     poll_interval: float = 0.5      # how often to read the player's position
     # HDMI0 on the Pi 4. The 3.5mm jack is the ALSA default, so this must be set.
     audio_device: str = "alsa/sysdefault:CARD=vc4hdmi0"

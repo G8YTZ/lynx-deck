@@ -190,6 +190,15 @@ def build_app(cfg, engine, deck_server=None, state=None):
             1, lambda: subprocess.Popen(["sudo", "/sbin/shutdown", "-r", "+0"]))
         return {"rebooting": True}
 
+    @app.post("/system/shutdown")
+    async def shutdown(x_lynx_token: str = Header(default=None)):
+        """Stop cleanly so the card is not left mid-write."""
+        check(x_lynx_token)
+        log.warning("Shutdown requested via the web interface")
+        asyncio.get_running_loop().call_later(
+            1, lambda: subprocess.Popen(["sudo", "/sbin/shutdown", "-h", "+0"]))
+        return {"shuttingDown": True}
+
     @app.post("/system/restartPlayer")
     async def restart_player(x_lynx_token: str = Header(default=None)):
         check(x_lynx_token)
@@ -354,6 +363,16 @@ async def serve(cfg, engine, deck_server=None, state=None):
     app = build_app(cfg, engine, deck_server, state)
     config = uvicorn.Config(app, host="0.0.0.0", port=cfg.http_port,
                             log_level="warning", access_log=False)
-    server = uvicorn.Server(config)
+
+    class Server(uvicorn.Server):
+        def install_signal_handlers(self):
+            """Leave signals to the main loop.
+
+            uvicorn would otherwise capture SIGTERM for itself, so our own
+            shutdown never runs and systemd waits out the full timeout before
+            resorting to SIGKILL.
+            """
+
+    server = Server(config)
     log.info("Web UI and REST API on http://0.0.0.0:%d", cfg.http_port)
     await server.serve()
