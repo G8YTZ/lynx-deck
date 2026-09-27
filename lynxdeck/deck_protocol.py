@@ -12,7 +12,7 @@ import logging
 import re
 
 from .engine import ClipNotFound, PlayerUnavailable
-from .player import MpvError
+from .player import PlayerError
 
 log = logging.getLogger(__name__)
 
@@ -238,7 +238,7 @@ class DeckServer:
             return simple(109, "out of range")
         except ValueError:
             return simple(102, "invalid value")
-        except MpvError:
+        except PlayerError:
             log.exception("Player error")
             return simple(108, "internal error")
 

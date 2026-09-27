@@ -20,16 +20,25 @@ class Config:
     still_duration: float = 10.0         # seconds a still holds when playing through the list
     default_clip: str = ""         # clip name or number: booted to, returned to, fallen back to
     default_behaviour: str = "auto"   # auto | once | loop | hold, for clips with no entry
-    hwdec: str = "auto"
+    # player: mpv, hardware decode straight to a DRM overlay plane (zero copy)
+    hwdec: str = "drm"
+    drm_draw_plane: str = "primary"
+    drm_video_plane: str = "overlay"
+    mpv_socket: str = "/tmp/lynxdeck-mpv.sock"
+    poll_interval: float = 0.5      # how often to read the player's position
     # HDMI0 on the Pi 4. The 3.5mm jack is the ALSA default, so this must be set.
     audio_device: str = "alsa/sysdefault:CARD=vc4hdmi0"
     volume: int = 100
     # watchdog
-    mpv_timeout: float = 5.0        # max wait for any mpv reply
+    load_timeout: float = 5.0       # max wait for a clip to finish loading
+    player_timeout: float = 5.0        # max wait for any player reply
     watchdog_interval: float = 2.0  # how often to check the player is alive
-    stall_timeout: float = 5.0      # playing but timecode frozen this long = stalled
+    stall_timeout: float = 8.0      # playing but timecode frozen this long = stalled
+    start_grace: float = 6.0        # a clip gets this long to start before judging it
+    restart_backoff: float = 5.0    # wait between restart attempts, multiplied each time
+    max_restarts: int = 3           # then fall back to the default slide
     report_health: bool = True      # add a "player" field to transport info
-    mpv_socket: Path = Path("/tmp/lynxdeck-mpv.sock")
+
     hyperdeck_port: int = 9993
     http_port: int = 8080
     max_upload_mb: int = 8192      # refuse anything larger
@@ -52,4 +61,7 @@ def load(path) -> Config:
             continue
         default = getattr(cfg, key)
         setattr(cfg, key, type(default)(value))
+    # mpv wants the "alsa/device" form; accept a bare device name too
+    if not cfg.audio_device.startswith(("alsa/", "pipewire", "pulse")):
+        cfg.audio_device = "alsa/" + cfg.audio_device
     return cfg

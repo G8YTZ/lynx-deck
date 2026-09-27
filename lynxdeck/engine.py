@@ -1,14 +1,18 @@
 """State engine: the single source of truth for transport state.
 
-Every controller (deck protocol, REST API, web UI and scheduler
-later) is just a client of this engine, so they always agree on state.
+Every controller (deck protocol, REST API, web UI and scheduler later) is a
+client of this engine, so they can never disagree about what is on air.
+
+The player is VLC, one process per clip, driven over its RC socket. The
+control protocol never waits on the player: every player call has a timeout,
+the command lock is never held indefinitely, and the watchdog runs outside it.
 """
 import asyncio
 import contextlib
 import logging
 import time
 
-from .player import Mpv, MpvError, MpvTimeout
+from .player import Mpv, PlayerError, PlayerTimeout
 
 log = logging.getLogger(__name__)
 
@@ -18,155 +22,55 @@ class ClipNotFound(Exception):
 
 
 class PlayerUnavailable(Exception):
-    """The player is wedged or restarting - the command cannot be honoured now."""
+    """The player is wedged or restarting - the command cannot be honoured."""
 
 
 class Engine:
-    def __init__(self, cfg, library):
+    def __init__(self, cfg, library, player=None):
         self.cfg = cfg
         self.library = library
-        self.mpv = Mpv(cfg, self._on_mpv_event)
-        self.status = "stopped"      # "stopped" or "play"
+        self.player = player or Mpv(cfg)
+        self.status = "stopped"          # "stopped" or "play"
         self.clip_id = None
         self.speed = 100
         self.loop = False
         self.single_clip = False
-        self.position = 0.0          # seconds into the current clip
+        self.position = 0.0
         self.started_at = time.monotonic()
-        self._eof = False
-        self._gen = 0                # bumps on every clip load; stale events are ignored
+        self.player_state = "ok"         # ok | stalled | restarting
+        self._gen = 0
         self._still_timer = None
         self._listeners = []
         self._tasks = set()
         self._lock = asyncio.Lock()
-        self._closing = False
-        self._supervisor = None
-        self._watchdog = None
         self._restart_lock = asyncio.Lock()
-        self.player_state = "ok"          # ok | stalled | restarting
+        self._closing = False
+        self._poller = None
+        self._watchdog = None
+        self._probe_failures = 0
         self._last_pos = 0.0
         self._last_pos_time = time.monotonic()
-        self._probe_failures = 0
-        self._grace_until = 0.0           # settle time after a restart
+        self._grace_until = 0.0
+        self._restarts = 0               # consecutive failed restarts
+        self._last_restart = 0.0
 
     # ----- lifecycle -------------------------------------------------------
 
     async def start(self):
-        await self.mpv.start()
+        await self.player.start()
         if self.library.clips:
-            first = self.default_clip_id() or 1
-            await self.goto_clip(first)
-            await self.play()          # the default slide goes to air at boot
-        self._supervisor = asyncio.create_task(self._supervise())
+            await self.goto_clip(self.default_clip_id() or 1)
+            await self.play()            # the default slide goes to air at boot
+        self._poller = asyncio.create_task(self._poll())
         self._watchdog = asyncio.create_task(self._watch())
 
     async def close(self):
         self._closing = True
         self._cancel_still_timer()
-        for task in (self._watchdog, self._supervisor):
+        for task in (self._poller, self._watchdog):
             if task:
                 task.cancel()
-        await self.mpv.close()
-
-    async def _supervise(self):
-        """Notice if the mpv process dies and hand it to the restart path."""
-        while not self._closing:
-            await self.mpv.wait()
-            if self._closing:
-                return
-            await asyncio.sleep(1)
-            if (not self._restart_lock.locked()
-                    and time.monotonic() >= self._grace_until):
-                await self._restart_player("mpv exited")
-
-    async def _watch(self):
-        """Watchdog: prove mpv is answering, and that playback is progressing.
-
-        The control protocol must never depend on the player, so this runs
-        entirely outside the command lock.
-        """
-        while not self._closing:
-            await asyncio.sleep(self.cfg.watchdog_interval)
-            if self._closing or self._restart_lock.locked():
-                continue
-            if time.monotonic() < self._grace_until:
-                continue      # let a freshly restarted player settle
-            # 1. is mpv answering at all?
-            try:
-                await self.mpv.command("get_property", "mpv-version",
-                                       timeout=self.cfg.watchdog_interval)
-                self._probe_failures = 0
-            except MpvError as exc:
-                self._probe_failures += 1
-                log.warning("Player probe failed (%d): %s", self._probe_failures, exc)
-                if self._probe_failures >= 2:
-                    self.player_state = "stalled"
-                    self._notify()
-                    await self._restart_player("player stopped answering")
-                continue
-            # 2. if it claims to be playing a video, is the timecode moving?
-            clip = self.library.get(self.clip_id)
-            playing_video = self.status == "play" and clip and clip.kind == "video"
-            if playing_video and not self._eof:
-                if abs(self.position - self._last_pos) > 0.05:
-                    self._last_pos = self.position
-                    self._last_pos_time = time.monotonic()
-                elif time.monotonic() - self._last_pos_time > self.cfg.stall_timeout:
-                    log.error("Playback stalled at %.2f s", self.position)
-                    self.player_state = "stalled"
-                    self._notify()
-                    await self._restart_player("playback stalled")
-            else:
-                self._last_pos = self.position
-                self._last_pos_time = time.monotonic()
-
-    async def _restart_player(self, reason):
-        """Rebuild mpv and put the transport back where it was."""
-        if self._restart_lock.locked():
-            return
-        async with self._restart_lock:
-            log.error("Restarting player: %s", reason)
-            self.player_state = "restarting"
-            self._notify()
-            want_clip, want_pos, want_status = self.clip_id, self.position, self.status
-            self._cancel_still_timer()
-            try:
-                await self.mpv.kill()
-                await asyncio.sleep(1)
-                await self.mpv.start()
-            except Exception:
-                log.exception("Player restart failed - retrying shortly")
-                self.player_state = "stalled"
-                self._notify()
-                return
-            try:
-                async with self._guard(timeout=10):
-                    if want_clip and not self.library.get(want_clip):
-                        want_clip = self.default_clip_id()
-                        want_pos, want_status = 0.0, "play"
-                        log.warning("Previous clip is gone - falling back to the default slide")
-                    if want_clip:
-                        await self._load(want_clip)
-                        clip = self.library.get(want_clip)
-                        if want_pos > 1 and clip and clip.kind == "video":
-                            with contextlib.suppress(MpvError):
-                                await self.mpv.command("seek", want_pos, "absolute")
-                        if want_status == "play":
-                            await self.mpv.set("pause", False)
-                            self.status = "play"
-                            self._arm_still_timer(clip)
-                    self.player_state = "ok"
-                    self._probe_failures = 0
-                    self._last_pos = self.position
-                    self._last_pos_time = time.monotonic()
-                    self._grace_until = time.monotonic() + max(
-                        5.0, self.cfg.stall_timeout + self.cfg.watchdog_interval)
-                    self._notify()
-                log.info("Player restarted and resumed")
-            except (MpvError, ClipNotFound, PlayerUnavailable):
-                log.exception("Could not restore transport after restart")
-                self.player_state = "stalled"
-                self._notify()
+        await self.player.close()
 
     # ----- listeners -------------------------------------------------------
 
@@ -174,7 +78,6 @@ class Engine:
         self._listeners.append(callback)
 
     def notify_library_changed(self):
-        """Library rescanned: clip IDs may have moved, so tell the clients."""
         if self.clip_id and self.clip_id > len(self.library.clips):
             self.clip_id = len(self.library.clips) or None
         self._notify()
@@ -185,6 +88,11 @@ class Engine:
                 cb()
             except Exception:
                 log.exception("Listener failed")
+
+    def _spawn(self, coro):
+        task = asyncio.create_task(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     @contextlib.asynccontextmanager
     async def _guard(self, timeout=3.0):
@@ -198,11 +106,6 @@ class Engine:
         finally:
             self._lock.release()
 
-    def _spawn(self, coro):
-        task = asyncio.create_task(coro)
-        self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
-
     # ----- transport commands ---------------------------------------------
 
     async def goto_clip(self, clip_id):
@@ -212,13 +115,16 @@ class Engine:
 
     async def seek_clip_start(self):
         async with self._guard():
-            await self.mpv.command("seek", 0, "absolute")
-            self._eof = False
+            await self.player.seek(0)
+            self.position = 0.0
             self._notify()
 
     async def seek_clip_end(self):
         async with self._guard():
-            await self.mpv.command("seek", 100, "absolute-percent")
+            clip = self.library.get(self.clip_id)
+            if clip and clip.duration > 2:
+                await self.player.seek(int(clip.duration) - 1)
+                self.position = clip.duration - 1
             self._notify()
 
     async def play(self, speed=100, loop=None, single_clip=None):
@@ -226,109 +132,107 @@ class Engine:
             if self.clip_id is None:
                 if not self.library.clips:
                     raise ClipNotFound("no clips")
-                await self._load(1)
+                await self._load(self.default_clip_id() or 1)
+            reload_needed = False
+            if loop is not None and loop != self.loop:
+                self.loop, reload_needed = loop, True
+            if single_clip is not None and single_clip != self.single_clip:
+                self.single_clip, reload_needed = single_clip, True
             self.speed = speed
-            if loop is not None:
-                self.loop = loop
-            if single_clip is not None:
-                self.single_clip = single_clip
-            clip = self.library.get(self.clip_id)
-            await self.mpv.set("speed", speed / 100)
-            await self._apply_loop(clip)
-            if self._eof and clip.kind == "video":
-                await self.mpv.command("seek", 0, "absolute")
-                self._eof = False
-            await self.mpv.set("pause", False)
+            if reload_needed:
+                # VLC decides repeat at launch, so a loop change means a reload
+                await self._load(self.clip_id, resume=self.position)
+            if speed != 100:
+                with contextlib.suppress(PlayerError):
+                    await self.player.rc(f"rate {speed / 100:.2f}", expect_reply=False)
+            await self.player.play()
             self.status = "play"
-            self._arm_still_timer(clip)
+            self._arm_still_timer(self.library.get(self.clip_id))
+            self._mark_progress()
             self._notify()
 
     async def stop(self):
         async with self._guard():
             self._cancel_still_timer()
-            await self.mpv.set("pause", True)
+            await self.player.pause()        # holds the frame, HyperDeck style
             self.status = "stopped"
+            self._notify()
+
+    async def set_flags(self, loop=None, single_clip=None):
+        """Change loop / single clip without disturbing playback."""
+        async with self._guard():
+            changed = False
+            if loop is not None and loop != self.loop:
+                self.loop, changed = loop, True
+            if single_clip is not None and single_clip != self.single_clip:
+                self.single_clip, changed = single_clip, True
+            if changed and self.clip_id and self.status == "play":
+                await self._load(self.clip_id, resume=self.position)
+                await self.player.play()
             self._notify()
 
     # ----- internals (call with the lock held) -----------------------------
 
-    async def _load(self, clip_id):
+    def _repeat_wanted(self, clip):
+        """Should VLC repeat this clip by itself?"""
+        if clip is None:
+            return False
+        if self.single_clip and self.loop:
+            return True
+        return clip.behaviour == "loop"
+
+    async def _load(self, clip_id, resume=0.0, play=False):
         clip = self.library.get(clip_id)
         if clip is None:
             raise ClipNotFound(clip_id)
         self._cancel_still_timer()
         self._gen += 1
-        await self.mpv.set("pause", True)
-        await self._apply_loop(clip)
-        await self.mpv.command("loadfile", str(clip.path), "replace")
+        await self.player.load(clip.path, still=clip.kind == "still",
+                               repeat=self._repeat_wanted(clip), play=play)
+        # a clip needs a moment to start reporting; don't call that a stall
+        self._grace_until = time.monotonic() + self.cfg.start_grace
+        if resume > 1 and clip.kind == "video":
+            with contextlib.suppress(PlayerError):
+                await self.player.seek(int(resume))
         self.clip_id = clip_id
-        self.status = "stopped"
-        self.position = 0.0
-        self._eof = False
-        log.info("Cued clip %d: %s", clip.id, clip.name)
-        if clip.kind == "video":
-            self._spawn(self._log_decoder(clip.name))
-
-    async def _log_decoder(self, name):
-        """Say plainly whether the hardware decoder is doing the work."""
-        await asyncio.sleep(1.0)
-        try:
-            dec = await self.mpv.command("get_property", "video-codec")
-            hw = await self.mpv.command("get_property", "hwdec-current")
-        except MpvError:
-            return
-        if hw and hw not in ("no", "none"):
-            log.info("%s: %s decoded in hardware (%s)", name, dec, hw)
-        else:
-            log.warning("%s: %s decoded in SOFTWARE - expect trouble above 1080p", name, dec)
-
-    async def _apply_loop(self, clip):
-        # mpv loops the file itself, which makes it seamless (no reload gap).
-        seamless = clip.kind == "video" and (
-            (self.loop and self.single_clip) or clip.behaviour == "loop")
-        await self.mpv.set("loop-file", "inf" if seamless else "no")
+        self.status = "play" if play else "stopped"
+        self.position = resume if resume > 1 else 0.0
+        self._mark_progress()
+        log.info("Cued clip %d: %s (%s %s)", clip.id, clip.name, clip.kind, clip.codec)
 
     def _arm_still_timer(self, clip):
         self._cancel_still_timer()
-        if clip.kind == "still" and not self.single_clip:
+        if clip and clip.kind == "still" and not self.single_clip \
+                and clip.behaviour != "loop":
             gen = self._gen
             self._still_timer = asyncio.get_running_loop().call_later(
-                self.cfg.still_duration, lambda: self._spawn(self._advance(gen)))
+                max(clip.duration, 1.0), lambda: self._spawn(self._advance(gen)))
 
     def _cancel_still_timer(self):
         if self._still_timer:
             self._still_timer.cancel()
             self._still_timer = None
 
-    def _on_mpv_event(self, msg):
-        # Runs inside the mpv reader task: never await the lock here, spawn instead.
-        if msg.get("event") != "property-change":
-            return
-        name, data = msg.get("name"), msg.get("data")
-        if name == "time-pos" and isinstance(data, (int, float)):
-            self.position = float(data)
-        elif name == "eof-reached" and data is True:
-            self._eof = True
-            if self.status == "play":
-                self._spawn(self._advance(self._gen))
+    def _mark_progress(self):
+        self._last_pos = self.position
+        self._last_pos_time = time.monotonic()
 
     async def _advance(self, gen):
-        """Current clip finished: move on according to loop / single clip."""
+        """Current clip finished: move on according to its behaviour."""
         try:
             async with self._guard():
                 if gen != self._gen or self.status != "play":
                     return
                 clip = self.library.get(self.clip_id)
                 if self.single_clip:
-                    # the controller explicitly asked for single-clip mode
-                    self.status = "stopped"      # hold the last frame
+                    self.status = "stopped"      # controller asked for one clip
                     self._notify()
                     return
                 behaviour = clip.behaviour if clip else "auto"
                 if behaviour == "loop":
-                    nxt = self.clip_id           # a still looping = hold it again
+                    nxt = self.clip_id
                 elif behaviour == "hold":
-                    self.status = "stopped"
+                    self.status = "stopped"      # hold the last frame
                     self._notify()
                     return
                 else:
@@ -344,13 +248,124 @@ class Engine:
                             self._notify()
                             return
                 await self._load(nxt)
-                clip = self.library.get(nxt)
-                await self.mpv.set("pause", False)
+                await self.player.play()
                 self.status = "play"
-                self._arm_still_timer(clip)
+                self._arm_still_timer(self.library.get(nxt))
                 self._notify()
-        except (MpvError, ClipNotFound):
+        except (PlayerError, ClipNotFound, PlayerUnavailable):
             log.exception("Advance failed")
+
+    # ----- position polling and watchdog -----------------------------------
+
+    async def _poll(self):
+        """Track position and notice when a clip ends. Never takes the lock."""
+        while not self._closing:
+            await asyncio.sleep(self.cfg.poll_interval)
+            if self._restart_lock.locked() or self.player.proc is None:
+                continue
+            try:
+                if self.status == "play":
+                    self.position = await self.player.get_time()
+                    if await self.player.at_end():
+                        self._spawn(self._advance(self._gen))
+            except PlayerError:
+                pass          # the watchdog deals with a sick player
+
+    async def _watch(self):
+        """Prove the player is answering, and that playback is progressing."""
+        while not self._closing:
+            await asyncio.sleep(self.cfg.watchdog_interval)
+            if self._closing or self._restart_lock.locked():
+                continue
+            if time.monotonic() < self._grace_until or self.player.proc is None:
+                continue
+            try:
+                await self.player.is_alive()
+                self._probe_failures = 0
+            except PlayerError as exc:
+                self._probe_failures += 1
+                log.warning("Player probe failed (%d): %s", self._probe_failures, exc)
+                if self._probe_failures >= 2:
+                    self.player_state = "stalled"
+                    self._notify()
+                    await self._restart_player("player stopped answering")
+                continue
+            clip = self.library.get(self.clip_id)
+            playing_video = self.status == "play" and clip and clip.kind == "video"
+            if playing_video:
+                if abs(self.position - self._last_pos) > 0.05:
+                    self._mark_progress()
+                    self._restarts = 0          # healthy again
+                elif time.monotonic() - self._last_pos_time > self.cfg.stall_timeout:
+                    log.error("Playback stalled at %.1f s", self.position)
+                    self.player_state = "stalled"
+                    self._notify()
+                    await self._restart_player("playback stalled")
+            else:
+                self._mark_progress()
+
+    async def _restart_player(self, reason):
+        """Rebuild the player and put the transport back where it was."""
+        if self._restart_lock.locked():
+            return
+        now = time.monotonic()
+        if now - self._last_restart < self.cfg.restart_backoff * max(self._restarts, 1):
+            return                               # too soon - let it settle
+        self._last_restart = now
+        async with self._restart_lock:
+            self._restarts += 1
+            if self._restarts > self.cfg.max_restarts:
+                clip = self.library.get(self.clip_id)
+                name = clip.name if clip else "?"
+                log.error("Player failed %d times on %s - falling back to the "
+                          "default slide", self._restarts, name)
+                fallback = self.default_clip_id()
+                if fallback and fallback != self.clip_id:
+                    self._restarts = 0
+                    self.clip_id = fallback      # try the known-good slide instead
+                else:
+                    self.player_state = "stalled"
+                    self._notify()
+                    return
+            log.error("Restarting player: %s", reason)
+            self.player_state = "restarting"
+            self._notify()
+            want_clip, want_pos, want_status = self.clip_id, self.position, self.status
+            self._cancel_still_timer()
+            try:
+                await self.player.kill()
+                await asyncio.sleep(1)
+                await self.player.start()
+            except Exception:
+                log.exception("Player restart failed")
+                self.player_state = "stalled"
+                self._notify()
+                return
+            try:
+                async with self._guard(timeout=10):
+                    if want_clip and not self.library.get(want_clip):
+                        want_clip = self.default_clip_id()
+                        want_pos, want_status = 0.0, "play"
+                        log.warning("Previous clip is gone - using the default slide")
+                    if want_clip:
+                        await self._load(want_clip, resume=want_pos)
+                        if want_status == "play":
+                            await self.player.play()
+                            self.status = "play"
+                            self._arm_still_timer(self.library.get(want_clip))
+                    self.player_state = "ok"
+                    self._probe_failures = 0
+                    self._mark_progress()
+                    self._grace_until = time.monotonic() + max(
+                        5.0, self.cfg.stall_timeout + self.cfg.watchdog_interval)
+                    self._notify()
+                log.info("Player restarted and resumed")
+            except (PlayerError, ClipNotFound, PlayerUnavailable):
+                log.exception("Could not restore the transport after restart")
+                self.player_state = "stalled"
+                self._notify()
+
+    # ----- helpers ---------------------------------------------------------
 
     def default_clip_id(self):
         """The deck's default slide: booted to, returned to, fallen back to."""
@@ -364,20 +379,6 @@ class Engine:
                 return c.id
         log.warning("default_clip %r not found in the library", want)
         return None
-
-    async def set_flags(self, loop=None, single_clip=None):
-        """Change loop / single clip without disturbing playback."""
-        async with self._guard():
-            if loop is not None:
-                self.loop = loop
-            if single_clip is not None:
-                self.single_clip = single_clip
-            clip = self.library.get(self.clip_id)
-            if clip:
-                await self._apply_loop(clip)
-            self._notify()
-
-    # ----- state reporting -------------------------------------------------
 
     def timecode(self, seconds=None):
         fps = self.cfg.timecode_fps
@@ -402,6 +403,13 @@ class Engine:
         if self.cfg.report_health:
             info["player"] = self.player_state
         return info
+
+    async def player_health(self):
+        """Decoder and presentation counters; both zero means all is well."""
+        try:
+            return await self.player.health()
+        except PlayerError:
+            return {"decoderDrops": None, "lateFrames": None}
 
     def uptime(self):
         return int(time.monotonic() - self.started_at)

@@ -2,19 +2,25 @@
 media_dir: /srv/lynxdeck/media
 
 # Output - match your ATEM's video standard
-video_format: 1080p50         # what controllers are told
+video_format: 1080p25         # what controllers are told
 drm_connector: HDMI-A-1       # HDMI0 = the micro-HDMI port nearest the USB-C power
-drm_mode: 1920x1080@50        # actual HDMI output mode
+# The HDMI mode is set by the kernel at boot, not by the deck. Add to
+# /boot/firmware/cmdline.txt (one line):
+#   video=HDMI-A-1:1920x1080@25e
+drm_mode: 1920x1080@25
 timecode_fps: 25
 
 # Stills hold forever in single-clip mode; when playing through the list
 # they advance after this many seconds
 still_duration: 10
 
-# Player. VLC is used because Debian's mpv cannot reach the Pi's hardware
-# HEVC decoder and falls back to software (about 4 fps on 1080p HEVC).
-vout: drm_vout
-rc_port: 4212
+# Player: mpv, hardware decode straight to a DRM overlay plane (zero copy).
+# hwdec must be "drm" with vo=gpu; "drm-copy" works but costs ~190% CPU,
+# and "auto" falls back to software (about 4 fps on 1080p HEVC).
+hwdec: drm
+drm_draw_plane: primary
+drm_video_plane: overlay
+mpv_socket: /tmp/lynxdeck-mpv.sock
 poll_interval: 0.5
 
 # Deck identity
@@ -38,15 +44,15 @@ max_upload_mb: 8192       # largest file the upload endpoint will accept
 # The deck's default slide (name or number). It is played at boot, returned to
 # when the running order finishes, and fallen back to if a clip goes missing.
 # Leave blank to cue clip 1 and stop instead.
-default_clip: "00_default.mp4"
+default_clip: ""
 
 # What an unmarked clip does when it ends: auto | once | loop | hold.
 # Use "hold" when Companion triggers drive the running order, so nothing
 # advances on its own.
-default_behaviour: hold
+default_behaviour: auto
 
 # Audio output. The Pi's ALSA default is the 3.5mm jack, so HDMI must be named.
 # HDMI0 (the port nearest USB-C) is vc4hdmi0; the other port is vc4hdmi1.
-audio_device: "sysdefault:CARD=vc4hdmi0"
+audio_device: "alsa/sysdefault:CARD=vc4hdmi0"
 volume: 100
 load_timeout: 5           # max wait for a clip to load before play is allowed

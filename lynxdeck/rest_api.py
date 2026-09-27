@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from .engine import ClipNotFound, PlayerUnavailable
 from .library import STILL_EXT, VIDEO_EXT, _probe
-from .player import MpvError
+from .player import PlayerError
 from .web_ui import PAGE
 
 SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]")
@@ -171,6 +171,11 @@ def build_app(cfg, engine):
         return {"clips": len(engine.library.clips)}
 
     # ----- transport -----
+    @app.get("/player/health")
+    async def player_health():
+        """Counters that mean something: both should stay at zero."""
+        return {"state": engine.player_state, **(await engine.player_health())}
+
     @app.get("/transports/0")
     async def transport():
         info = engine.transport_info()
@@ -191,7 +196,7 @@ def build_app(cfg, engine):
             raise HTTPException(404, "no such clip")
         except PlayerUnavailable:
             raise HTTPException(503, "player restarting")
-        except MpvError:
+        except PlayerError:
             raise HTTPException(500, "player error")
         return await transport()
 

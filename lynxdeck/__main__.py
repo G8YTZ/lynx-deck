@@ -3,6 +3,7 @@ import argparse
 import asyncio
 import logging
 import signal
+from pathlib import Path
 
 from . import __version__, config
 from .engine import Engine
@@ -39,6 +40,10 @@ def main():
     ap.add_argument("--config", default="config/lynx_deck.yaml")
     ap.add_argument("--debug", action="store_true", help="log every protocol command")
     args = ap.parse_args()
+    if not Path(args.config).is_file():
+        example = Path(args.config).with_suffix(".yaml.example")
+        raise SystemExit(f"No config at {args.config}\n"
+                         f"Copy the example: cp {example} {args.config}")
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s")
