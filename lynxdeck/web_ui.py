@@ -91,9 +91,12 @@ PAGE = """<!doctype html>
     <strong>Maintenance</strong>
     <div class="row" style="margin-top:10px">
       <button class="ghost" onclick="restartPlayer()">Restart player</button>
+      <button class="ghost" onclick="checkUpdate()">Check for updates</button>
+      <button id="updbtn" onclick="doUpdate()" style="display:none">Update &amp; restart</button>
       <button onclick="reboot()">Reboot deck</button>
     </div>
-    <div class="muted" style="margin-top:8px">Reboot takes about 30 seconds.</div>
+    <div class="muted" id="updinfo" style="margin-top:8px">Reboot takes about 30 seconds.</div>
+    <div class="muted" id="health" style="margin-top:4px"></div>
   </div>
 </main>
 <script>
@@ -128,6 +131,43 @@ async function setBehaviour(name, behaviour) {
 async function goto(i) { await api('/transports/0/clipIndex', 'PUT', {clipIndex:i}); refresh(); }
 async function rescan() { await api('/media/rescan', 'POST'); loadClips(); }
 async function restartPlayer() { await api('/system/restartPlayer', 'POST'); }
+
+async function checkUpdate() {
+  const info = document.getElementById('updinfo');
+  const btn = document.getElementById('updbtn');
+  info.textContent = 'Checking...';
+  try {
+    const u = await api('/system/update');
+    if (!u.git) { info.textContent = 'v' + u.version + ' (not a git checkout)'; return; }
+    let line = `v${u.version} \u00b7 ${u.branch} @ ${u.git} \u00b7 ${u.message}`;
+    if (u.localChanges) line += ' \u00b7 local changes present, update blocked';
+    else if (u.updateAvailable) line += ` \u00b7 ${u.commitsBehind} update(s) available`;
+    else line += ' \u00b7 up to date';
+    info.textContent = line;
+    btn.style.display = (u.updateAvailable && !u.localChanges) ? '' : 'none';
+  } catch (e) { info.textContent = 'Check failed: ' + e.message; }
+}
+
+async function doUpdate() {
+  if (!confirm('Update and restart the deck? Playback stops briefly.')) return;
+  const info = document.getElementById('updinfo');
+  info.textContent = 'Updating...';
+  try {
+    const r = await api('/system/update', 'POST');
+    info.textContent = r.updated
+      ? `Updated to ${r.git}, restarting...`
+      : 'Already up to date.';
+    document.getElementById('updbtn').style.display = 'none';
+  } catch (e) { info.textContent = 'Update failed: ' + e.message; }
+}
+
+async function showHealth() {
+  try {
+    const h = await api('/player/health');
+    document.getElementById('health').textContent =
+      `Decoder drops: ${h.decoderDrops} \u00b7 Late frames: ${h.lateFrames}`;
+  } catch (e) {}
+}
 async function reboot() {
   if (confirm('Reboot the deck now?')) await api('/system/reboot', 'POST');
 }
@@ -221,7 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fmt').textContent = s.videoFormat;
   await loadClips();
   refresh();
+  checkUpdate();
+  showHealth();
   setInterval(refresh, 1000);
+  setInterval(showHealth, 10000);
 })();
 </script>
 </body>

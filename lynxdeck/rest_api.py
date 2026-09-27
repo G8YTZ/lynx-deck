@@ -13,6 +13,7 @@ from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from . import __version__
 from .engine import ClipNotFound, PlayerUnavailable
 from .library import STILL_EXT, VIDEO_EXT, _probe
 from .player import PlayerError
@@ -59,6 +60,70 @@ def build_app(cfg, engine):
                 "uniqueId": cfg.unique_id, "softwareVersion": cfg.version,
                 "videoFormat": cfg.video_format, "uptimeSeconds": engine.uptime(),
                 "player": engine.player_state}
+
+    async def _run(*args, cwd=None, timeout=120):
+        """Run a command and return (ok, output)."""
+        proc = await asyncio.create_subprocess_exec(
+            *args, cwd=cwd,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT)
+        try:
+            out, _ = await asyncio.wait_for(proc.communicate(), timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            return False, f"{args[0]} timed out"
+        return proc.returncode == 0, out.decode("utf-8", "replace").strip()
+
+    def repo_dir():
+        return cfg.repo_dir or str(Path(__file__).resolve().parent.parent)
+
+    @app.get("/system/update")
+    async def update_status():
+        """What is installed, and is there anything newer on the remote?"""
+        ok, local = await _run("git", "rev-parse", "--short", "HEAD", cwd=repo_dir())
+        if not ok:
+            return {"version": __version__, "git": None,
+                    "detail": "not a git checkout"}
+        _, branch = await _run("git", "rev-parse", "--abbrev-ref", "HEAD", cwd=repo_dir())
+        _, subject = await _run("git", "log", "-1", "--pretty=%s", cwd=repo_dir())
+        _, dirty = await _run("git", "status", "--porcelain", cwd=repo_dir())
+        fetched, fetch_out = await _run("git", "fetch", "--quiet", cwd=repo_dir(), timeout=60)
+        behind = 0
+        if fetched:
+            ok2, counts = await _run("git", "rev-list", "--left-right", "--count",
+                                     f"HEAD...origin/{branch}", cwd=repo_dir())
+            if ok2 and counts:
+                parts = counts.split()
+                behind = int(parts[1]) if len(parts) > 1 else 0
+        return {"version": __version__, "git": local, "branch": branch,
+                "message": subject, "localChanges": bool(dirty),
+                "updateAvailable": behind > 0, "commitsBehind": behind,
+                "detail": None if fetched else fetch_out}
+
+    @app.post("/system/update")
+    async def do_update(x_lynx_token: str = Header(default=None)):
+        """Pull the latest code and restart the service.
+
+        Fast-forward only: if the working tree has local changes, or the
+        history has diverged, it refuses rather than guessing.
+        """
+        check(x_lynx_token)
+        _, dirty = await _run("git", "status", "--porcelain",
+                              "--untracked-files=no", cwd=repo_dir())
+        if dirty:
+            raise HTTPException(409, f"local changes present:\n{dirty}")
+        ok, out = await _run("git", "pull", "--ff-only", cwd=repo_dir(), timeout=180)
+        if not ok:
+            raise HTTPException(500, f"update failed:\n{out}")
+        _, now = await _run("git", "rev-parse", "--short", "HEAD", cwd=repo_dir())
+        if "Already up to date" in out:
+            return {"updated": False, "git": now, "detail": out, "restarting": False}
+        log.warning("Updated to %s - restarting", now)
+        asyncio.get_running_loop().call_later(
+            1, lambda: subprocess.Popen(
+                ["sudo", "/usr/bin/systemctl", "restart", "lynx-deck"]))
+        return {"updated": True, "git": now, "detail": out, "restarting": True}
 
     @app.post("/system/reboot")
     async def reboot(x_lynx_token: str = Header(default=None)):

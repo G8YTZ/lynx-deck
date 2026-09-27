@@ -56,3 +56,7 @@ default_behaviour: auto
 audio_device: "alsa/sysdefault:CARD=vc4hdmi0"
 volume: 100
 load_timeout: 5           # max wait for a clip to load before play is allowed
+
+# Where the git checkout lives, for the web UI's update button.
+# Blank means the directory this package sits in, which is usually right.
+repo_dir: ""

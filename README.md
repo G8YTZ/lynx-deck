@@ -33,9 +33,9 @@ Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop.
 
     sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi python3-uvicorn
 
-Allow the reboot endpoint to work without a password:
+Allow the reboot and update endpoints to work without a password:
 
-    echo "$USER ALL=(root) NOPASSWD: /sbin/shutdown" | sudo tee /etc/sudoers.d/lynxdeck
+    echo "$USER ALL=(root) NOPASSWD: /sbin/shutdown, /usr/bin/systemctl restart lynx-deck" | sudo tee /etc/sudoers.d/lynxdeck
     sudo chmod 440 /etc/sudoers.d/lynxdeck
 
 ## Web UI and REST API
@@ -46,6 +46,9 @@ Browse to `http://<deck>:8080`. Endpoints:
 | GET | `/system` | model, version, uptime, player health |
 | POST | `/system/reboot` | reboot the deck |
 | POST | `/system/restartPlayer` | rebuild mpv without rebooting |
+| GET | `/system/update` | installed version, and whether the remote has anything newer |
+| POST | `/system/update` | pull and restart (fast-forward only) |
+| GET | `/player/health` | decoder drops and late frames |
 | GET | `/media/workingset` | clip list |
 | POST | `/media/rescan` | rescan the media folder |
 | GET | `/transports/0` | transport state |
@@ -104,6 +107,18 @@ image, because the video bypasses mpv's renderer and it cannot verify
 presentations. Ignore it. The meaningful counters, exposed at
 `/player/health`, are `decoder-frame-drop-count` and `vo-delayed-frame-count`;
 both stay at zero when all is well.
+
+## Software update
+The web UI has a Check for updates button, and an Update and restart button
+that appears when the remote is ahead. It is a fast-forward pull of the
+checked-out branch followed by a service restart, so it refuses rather than
+guessing if tracked files have been edited locally. Untracked files - media,
+logs, your config - never block it. Set `repo_dir` in the config if the
+checkout is somewhere other than the package's parent directory.
+
+Because the pull needs credentials, make sure git can authenticate without a
+prompt: either a deploy key, or `git config --global credential.helper store`
+with the token already saved.
 
 ## Output standard
 The HDMI mode is set once by the kernel at boot, not by the player, so nothing
