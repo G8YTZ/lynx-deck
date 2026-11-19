@@ -259,7 +259,8 @@ seconds early, to make up for the coding and transmission delay, so the hands
 are right on air; **Second hand** sweeps or ticks once a second. Both take
 effect at once.
 
-`clock/GB3OO_Clock.png` is the GB3OO face (Deco Gold, 1920x1080); the hands are
+`clock/GB3OO_Clock.png` and `clock/GB3JT_Clock.png` are the GB3OO and GB3JT
+faces (Deco Gold, 1920x1080); the hands are
 drawn to fit it. `clock/make_clock.py` draws the face and also renders whole clock
 clips as video files.
 

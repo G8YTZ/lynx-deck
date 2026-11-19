@@ -8,6 +8,7 @@ starting at 10:59:00 shows 10:59:00 at its first frame; Lynx Deck starts
 it early by the chain delay so the hands are right on air.
 
   python3 make_clock.py face GB3OO_Clock.png          # the face for Lynx Deck (no hands)
+  python3 make_clock.py --station GB3JT,MAIDSTONE,gb3jt.co.uk face GB3JT_Clock.png
   python3 make_clock.py still 10:09:32 [out.png]      # one frame
   python3 make_clock.py render 10:59:00 120 out.mp4   # a clip from that time
 
@@ -43,6 +44,8 @@ F_FIG = FD % ("italiana", "italiana")
 F_CAP = FD % ("julius-sans-one", "julius-sans-one")
 
 _bg = None
+# call sign, town, web site; --station GB3JT,MAIDSTONE,gb3jt.co.uk for another
+STATION = ["GB3OO", "FOLKESTONE", "gb3oo.co.uk"]
 _fonts = {}
 
 
@@ -111,9 +114,9 @@ def background():
         b = f.getbbox(str(n))
         d.text((x - (b[0] + b[2]) / 2, y - (b[1] + b[3]) / 2), str(n), font=f, fill=TEXT)
     # Lettering.
-    tracked(d, CX, CY - 150 * S, "GB3OO", font(F_CAP, 40 * S), TEXT, 20 * S)
-    tracked(d, CX, CY + 104 * S, "FOLKESTONE", font(F_CAP, 18 * S), TEXT_SOFT, 8 * S)
-    tracked(d, CX, h - 35 * S - 72 * S, "gb3oo.co.uk", font(F_CAP, 24 * S), TEXT_SOFT, 6 * S)   # the web site (Justin, 19 Nov)
+    tracked(d, CX, CY - 150 * S, STATION[0], font(F_CAP, 40 * S), TEXT, 20 * S)
+    tracked(d, CX, CY + 104 * S, STATION[1], font(F_CAP, 18 * S), TEXT_SOFT, 8 * S)
+    tracked(d, CX, h - 35 * S - 72 * S, STATION[2], font(F_CAP, 24 * S), TEXT_SOFT, 6 * S)   # the web site (Justin, 19 Nov)
     _bg = img
     return img
 
@@ -186,6 +189,9 @@ def render(start, dur, out):
 
 
 if __name__ == "__main__":
+    if sys.argv[1] == "--station":
+        STATION[:] = sys.argv[2].split(",")
+        del sys.argv[1:3]
     if sys.argv[1] == "face":
         background().resize((W, H), Image.LANCZOS).save(sys.argv[2])
     elif sys.argv[1] == "still":
