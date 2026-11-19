@@ -18,6 +18,9 @@ class Config:
     drm_mode: str = "1920x1080@50"       # HDMI output mode
     timecode_fps: int = 25
     still_duration: float = 10.0         # seconds a still holds when playing through the list
+    # station clock (clock.lua): any still named ...clock.png gets live hands
+    clock_offset: float = 0.0            # seconds ahead, to allow for coding and decoding delay
+    clock_second: str = "sweep"          # sweep | tick
     default_clip: str = ""         # clip name or number: booted to, returned to, fallen back to
     default_behaviour: str = "auto"   # auto | once | loop | hold, for clips with no entry
     # player: mpv, hardware decode straight to a DRM overlay plane (zero copy)

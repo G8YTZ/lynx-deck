@@ -16,6 +16,8 @@ EDITABLE = {
     "defaultBehaviour": ("default_behaviour", str),
     "stillDuration": ("still_duration", float),
     "volume": ("volume", int),
+    "clockOffset": ("clock_offset", float),
+    "clockSecond": ("clock_second", str),
 }
 
 
@@ -65,6 +67,10 @@ class State:
                 raise ValueError("stillDuration must be between 1 and 3600 seconds")
             if key == "volume" and not 0 <= typed <= 130:
                 raise ValueError("volume must be between 0 and 130")
+            if key == "clockOffset" and not -10 <= typed <= 10:
+                raise ValueError("clockOffset must be between -10 and 10 seconds")
+            if key == "clockSecond" and typed not in ("sweep", "tick"):
+                raise ValueError("clockSecond must be sweep or tick")
             setattr(self.cfg, attr, typed)
             applied[key] = typed
         merged = self.current()

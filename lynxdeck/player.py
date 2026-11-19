@@ -27,6 +27,8 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
+CLOCK_SCRIPT = Path(__file__).with_name("clock.lua")
+
 
 class PlayerError(Exception):
     pass
@@ -70,6 +72,7 @@ class Mpv:
             f"--volume={self.cfg.volume}",
             "--audio-fallback-to-null=yes",     # silence must never stop the picture
             "--pause=yes",
+            f"--script={CLOCK_SCRIPT}",          # hands over any ...clock still
         ]
 
     async def start(self):
@@ -98,6 +101,7 @@ class Mpv:
             raise PlayerError("mpv IPC socket never appeared")
         self._read_task = asyncio.create_task(self._read_loop(reader))
         await self.command("observe_property", 1, "eof-reached")
+        await self.clock_settings()
         self.paused, self.current, self.is_still, self.eof = True, None, False, False
         log.info("Player ready (mpv -> %s)", self.cfg.audio_device)
 
@@ -184,6 +188,14 @@ class Mpv:
 
     async def set(self, prop, value):
         return await self.command("set_property", prop, value)
+
+    async def clock_settings(self):
+        """Tell clock.lua the offset and second-hand style; harmless if it is absent."""
+        try:
+            await self.command("script-message", "lynxclock", str(self.cfg.clock_offset),
+                               "yes" if self.cfg.clock_second == "tick" else "no")
+        except PlayerError as exc:
+            log.warning("Could not set the clock: %s", exc)
 
     async def load(self, path, still=False, repeat=False, play=False, timeout=None):
         """Swap to this clip. The planes are never released, so no HDMI reset."""

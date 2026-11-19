@@ -145,6 +145,8 @@ def build_app(cfg, engine, deck_server=None, state=None):
             raise HTTPException(400, str(exc))
         await engine.library.scan()
         engine.notify_library_changed()
+        if {"clockOffset", "clockSecond"} & applied.keys():
+            await engine.player.clock_settings()
         log.info("Settings changed: %s", applied)
         return state.current()
 

@@ -128,6 +128,14 @@ PAGE = r"""<!doctype html>
         <span class="muted">(only used by auto)</span></td></tr>
       <tr><th>Volume</th><td>
         <input type="number" id="set-volume" min="0" max="130" step="1"> %</td></tr>
+      <tr><th>Clock ahead by</th><td>
+        <input type="number" id="set-clockOffset" min="-10" max="10" step="0.1"> seconds
+        <span class="muted">(the delay to air; any still named ...clock.png shows the clock)</span></td></tr>
+      <tr><th>Second hand</th><td>
+        <select id="set-clockSecond">
+          <option value="sweep">sweep</option>
+          <option value="tick">tick once a second</option>
+        </select></td></tr>
     </table>
     <div class="row" style="margin-top:12px">
       <button onclick="saveSettings()">Save settings</button>
@@ -275,6 +283,8 @@ async function loadSettings() {
   document.getElementById('set-defaultBehaviour').value = s.defaultBehaviour;
   document.getElementById('set-stillDuration').value = s.stillDuration;
   document.getElementById('set-volume').value = s.volume;
+  document.getElementById('set-clockOffset').value = s.clockOffset;
+  document.getElementById('set-clockSecond').value = s.clockSecond;
 }
 
 async function saveSettings() {
@@ -286,6 +296,8 @@ async function saveSettings() {
       defaultBehaviour: document.getElementById('set-defaultBehaviour').value,
       stillDuration: Number(document.getElementById('set-stillDuration').value),
       volume: Number(document.getElementById('set-volume').value),
+      clockOffset: Number(document.getElementById('set-clockOffset').value),
+      clockSecond: document.getElementById('set-clockSecond').value,
     });
     msg.textContent = 'Saved.';
     setTimeout(() => msg.textContent = '', 3000);

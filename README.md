@@ -246,6 +246,23 @@ and the deck always ends up showing something sensible, whatever goes wrong.
 The controller's own `single clip` flag always takes precedence over per-clip
 behaviour, so Companion and an ATEM behave exactly as they expect to.
 
+## The station clock
+Any still whose name ends in `clock` (`05_GB3OO_Clock.png`, say) is a clock
+face: while it is on screen, `lynxdeck/clock.lua` draws the hour, minute and
+second hands over it from the Pi's own clock, so keep the Pi on NTP
+(`timedatectl` should say "System clock synchronized: yes"). Call it up like any
+other clip, from the ATEM, Companion or the web page, and give it the `hold`
+behaviour so it stays up.
+
+Two settings on the web page: **Clock ahead by** runs the clock that many
+seconds early, to make up for the coding and transmission delay, so the hands
+are right on air; **Second hand** sweeps or ticks once a second. Both take
+effect at once.
+
+`clock/GB3OO_Clock.png` is the GB3OO face (Deco Gold, 1920x1080); the hands are
+drawn to fit it. `clock/make_clock.py` draws the face and also renders whole clock
+clips as video files.
+
 ## Media
 Put files in `/srv/lynxdeck/media`. Clip IDs follow filename order, so
 number them: `01_testcard.png`, `02_ident.mp4` ...
