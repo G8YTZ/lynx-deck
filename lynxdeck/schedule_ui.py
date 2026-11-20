@@ -69,7 +69,7 @@ PAGE = r"""<!doctype html>
     </table>
     <div class="row" style="margin-top:12px">
       <button onclick="saveEntry()">Save</button>
-      <button class="ghost" onclick="clearForm()">Clear</button>
+      <button class="ghost" id="f-cancel" onclick="clearForm()">Clear</button>
       <span id="formmsg" class="muted"></span>
     </div>
   </div>
@@ -158,6 +158,7 @@ function drawClips(sel) {
 
 function clearForm() {
   document.getElementById('formtitle').textContent = 'Add an entry';
+  document.getElementById('f-cancel').textContent = 'Clear';
   ['f-id','f-time','f-title','f-minutes'].forEach(i => document.getElementById(i).value = '');
   document.getElementById('f-repeat').value = 'daily'; repeatChanged();
   document.getElementById('f-enabled').checked = true;
@@ -169,6 +170,7 @@ function clearForm() {
 function edit(id) {
   const e = entries.find(x => x.id === id);
   document.getElementById('formtitle').textContent = 'Change an entry';
+  document.getElementById('f-cancel').textContent = 'Cancel';
   document.getElementById('f-id').value = e.id;
   document.getElementById('f-repeat').value = e.repeat; repeatChanged();
   document.getElementById('f-time').value = e.time;
