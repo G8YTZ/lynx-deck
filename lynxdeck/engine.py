@@ -52,6 +52,7 @@ class Engine:
         self._last_pos_time = time.monotonic()
         self._grace_until = 0.0
         self._restarts = 0               # consecutive failed restarts
+        self.restarts_total = 0          # every player restart since start (SNMP)
         self._last_restart = 0.0
         self.scheduler = None            # set by __main__ (scheduler.py)
 
@@ -344,6 +345,7 @@ class Engine:
         self._last_restart = now
         async with self._restart_lock:
             self._restarts += 1
+            self.restarts_total += 1
             if self._restarts > self.cfg.max_restarts:
                 clip = self.library.get(self.clip_id)
                 name = clip.name if clip else "?"

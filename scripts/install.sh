@@ -95,6 +95,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now lynx-deck
 echo "  service installed and started"
 echo
+# --- monitoring: SNMP, as on Lynx-Tx (nothing on air depends on it) ----------
+if bash "$REPO/scripts/setup_snmp.sh"; then
+  echo "  SNMP: community 'lynx', LYNX-MIB::lynxDeck (docs/Monitoring_Guide.md)"
+else
+  echo "WARNING: could not set up SNMP; the Deck works without it."
+fi
+echo
 
 if ! grep -q 'video=HDMI' /boot/firmware/cmdline.txt 2>/dev/null; then
   echo "NOTE: no HDMI mode is set at boot, so the monitor's own preference"

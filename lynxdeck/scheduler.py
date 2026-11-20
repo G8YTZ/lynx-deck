@@ -127,6 +127,8 @@ class Scheduler:
         self._task = None
         self._last = None
         self._faded_for = None
+        self.cuts = 0                   # scheduled cuts made (SNMP)
+        self.misses = 0                 # scheduled cuts that could not be made
         self.load()
 
     # ----- the list ------------------------------------------------------
@@ -231,16 +233,19 @@ class Scheduler:
         cid = self.clip_id(entry["clip"])
         what = entry["title"] or entry["clip"]
         if cid is None:
+            self.misses += 1
             log.warning("Schedule %s %s: clip %s is not in the library",
                         at.strftime("%H:%M:%S"), what, entry["clip"])
             return
         try:
             await self.engine.scheduled_play(cid, resume=resume)
+            self.cuts += 1
             self.last_fired = {"id": entry["id"], "at": at.strftime("%a %H:%M:%S"),
                                "clip": entry["clip"], "resume": round(resume)}
             log.info("Schedule %s: %s%s", at.strftime("%H:%M:%S"), what,
                      f" (rejoined {resume:.0f} s in)" if resume else "")
         except Exception as exc:
+            self.misses += 1
             log.error("Schedule %s %s: could not play %s: %s",
                       at.strftime("%H:%M:%S"), what, entry["clip"], exc)
 

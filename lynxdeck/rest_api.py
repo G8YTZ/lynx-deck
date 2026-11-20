@@ -17,7 +17,7 @@ from . import __version__
 from .engine import ClipNotFound, PlayerUnavailable
 from .library import STILL_EXT, VIDEO_EXT, _probe
 from .player import PlayerError
-from . import station_clock, sysinfo
+from . import health, station_clock, sysinfo
 from .web_ui import PAGE
 from .schedule_ui import PAGE as SCHEDULE_PAGE
 from . import scheduler as sched
@@ -464,6 +464,11 @@ def build_app(cfg, engine, deck_server=None, state=None):
         return {"clips": len(engine.library.clips)}
 
     # ----- transport -----
+    @app.get("/api/health")
+    async def api_health():
+        """Everything the SNMP agent serves, as plain numbers (health.py)."""
+        return await health.snapshot(cfg, engine)
+
     @app.get("/player/health")
     async def player_health():
         """Counters that mean something: both should stay at zero."""
