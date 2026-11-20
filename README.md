@@ -37,11 +37,11 @@ is a 1080p deck: it decodes 1080p HEVC with four to six times the headroom it
 needs, but 4K is beyond it.
 
 ## Documentation
-- [`Lynx_Deck_Installation_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Installation_Guide.docx): Blank SD card to working deck
-- [`Lynx_Deck_Web_Interface_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Web_Interface_Guide.docx): Day-to-day operation
-- [Station Clock Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Station_Clock_Guide.md): The station clock, your own face and the top-of-the-hour sound
-- [Schedule Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Schedule_Guide.md): The schedule, the programme guide and moving over from Companion
-- [Monitoring Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Monitoring_Guide.md): SNMP for Home Assistant and the like
+- [`Lynx_Deck_Installation_Guide.docx`](docs/Lynx_Deck_Installation_Guide.docx): Blank SD card to working deck
+- [`Lynx_Deck_Web_Interface_Guide.docx`](docs/Lynx_Deck_Web_Interface_Guide.docx): Day-to-day operation
+- [Station Clock Guide](docs/Station_Clock_Guide.md): The station clock, your own face and the top-of-the-hour sound
+- [Schedule Guide](docs/Schedule_Guide.md): The schedule, the programme guide and moving over from Companion
+- [Monitoring Guide](docs/Monitoring_Guide.md): SNMP for Home Assistant and the like
 
 ## Quick start
     sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi \
@@ -268,7 +268,7 @@ after the cut, the clip does what its behaviour says, as before.
   its address, or an export file) and adds them, with the clip where the
   trigger's actions name one. Check them afterwards.
 
-Kept in `schedule.json` beside the state file. Full instructions: [Schedule Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Schedule_Guide.md).
+Kept in `schedule.json` beside the state file. Full instructions: [Schedule Guide](docs/Schedule_Guide.md).
 
 ## Monitoring (SNMP)
 The Deck reports its health over SNMP (v2c, read-only, community `lynx`), as
@@ -277,7 +277,7 @@ the schedule's cuts and misses, the HDMI output, temperature, load and free
 space. The MIB is the Lynx family's shared `mibs/LYNX-MIB.txt`, branch
 `lynxDeck` (`.1.3.6.1.4.1.8072.9999.1.3`); the values come from `/api/health`.
 `install.sh` sets it up; on an older Deck run `scripts/setup_snmp.sh` once.
-See the [Monitoring Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Monitoring_Guide.md).
+See the [Monitoring Guide](docs/Monitoring_Guide.md).
 
 ## The station clock
 Any still whose name ends in `clock` (`05_GB3OO_Clock.png`, say) is a clock
