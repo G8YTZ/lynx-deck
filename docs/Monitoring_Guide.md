@@ -68,13 +68,14 @@ Two ready-made files in [`docs/home_assistant`](home_assistant):
 
 - **[`lynx_deck_sensors.yaml`](home_assistant/lynx_deck_sensors.yaml):** All
   20 values as sensors, with the states in words (*playing*, *ok*, *yes*) and
-  units where they have one. Paste them under the one `sensor:` key in
+  units where they have one (free space in GB: the Deck reports megabytes, and
+  the sensor divides by 1024). Paste them under the one `sensor:` key in
   `configuration.yaml`. The Deck's address is in the first sensor only; the
   rest copy it, so moving the Deck to another network is a one-line change.
 - **[`lynx_deck_dashboard.yaml`](home_assistant/lynx_deck_dashboard.yaml):** A
   *Lynx Deck* section for a Sections dashboard, as on GB3OO's: coloured tiles
   for the Deck, the player, the HDMI output, NTP and missed cuts; the clip on
-  the output and what the schedule says; small gauges for temperature and load;
+  the output and what the schedule says, each tile with its own icon; small gauges for temperature and load;
   the counters as tiles, three to a row; and a 24-hour history. To add it: on
   the dashboard, the pencil (edit mode), **Create section**, then the new
   section's three dots, **Edit in YAML**; select all, paste, save. (The
@@ -83,6 +84,20 @@ Two ready-made files in [`docs/home_assistant`](home_assistant):
 
 Check the configuration (Developer tools, YAML, Check configuration), then
 restart Home Assistant: a YAML reload does not load new SNMP sensors.
+
+Things that catch people out:
+
+- **One `sensor:` key and one `automation:` key.** A second one at the top
+  level of `configuration.yaml` replaces the first or fails the check. Put the
+  Deck's sensors under your existing `sensor:`; if your file has
+  `automation: !include automations.yaml` (the default), add the automation
+  below through Settings, Automations, *Edit in YAML* instead.
+- **Units and decimals belong to the sensor, not the card.** A tile has no
+  precision option: change the sensor's `unit_of_measurement` and
+  `value_template` as in the sensors file, or set *Display precision* on the
+  entity (Settings, Entities, the entity, the cog).
+- **Changed a unit on a sensor that already has history?** Home Assistant
+  raises a Repairs notice; click **Fix** and accept the new unit.
 
 An automation to tell you when something is wrong:
 
