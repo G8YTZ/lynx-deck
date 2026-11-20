@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Lynx Deck station clock: the sound for the top of the hour.
 
-One file per hour, each starting at mm:59:30 (G8YTZ, 20 Nov 2026):
+One file per hour, each starting at mm:59:30 (G8YTZ, 20 Nov 2026), written
+as lossless FLAC: the announcements and music are decoded once to place them
+in time and never re-encoded with a lossy codec (an AAC pass added audible
+quantising noise to the announcements; Justin, 20 Nov 2026):
 
   59:30  music (Lillibullero, 20 s; silence until the recording arrives)
   59:55  five short pips, 0.1 s each, on :55 :56 :57 :58 :59
@@ -12,7 +15,7 @@ One file per hour, each starting at mm:59:30 (G8YTZ, 20 Nov 2026):
 
 ANNOUNCEMENTS_DIR holds one file per hour whose name ends in its number
 (..._1.mp3 .. ..._12.mp3, or -1.mp3 and so on); an hour without one gets
-the pips alone. The results (junction_01.m4a .. junction_12.m4a) go in
+the pips alone. The results (junction_01.flac .. junction_12.flac) go in
 junction/ beside this script (the default every Deck starts with) or in
 --out: Lynx Deck builds each repeater's own in /srv/lynxdeck/clock/junction.
 """
@@ -100,13 +103,14 @@ def main():
         peak = float(np.abs(track).max())
         if peak > 0.98:
             track *= 0.98 / peak
-        part = out / f".junction_{hour:02d}.m4a"
+        part = out / f".junction_{hour:02d}.flac"
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(RATE), "-ac", "2",
-                        "-i", "-", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
-                        "-f", "mp4", str(part)], input=track.tobytes(), check=True)
-        part.replace(out / f"junction_{hour:02d}.m4a")
+                        "-i", "-", "-c:a", "flac", "-sample_fmt", "s32", "-f", "flac", str(part)],
+                       input=track.tobytes(), check=True)
+        part.replace(out / f"junction_{hour:02d}.flac")
+        (out / f"junction_{hour:02d}.m4a").unlink(missing_ok=True)   # the old lossy ones
         what = found[hour].name if hour in found else "pips only"
-        print(f"junction_{hour:02d}.m4a: {what}{', music' if music is not None else ''}, "
+        print(f"junction_{hour:02d}.flac: {what}{', music' if music is not None else ''}, "
               f"peak {20 * np.log10(peak):.1f} dBFS", flush=True)
 
 

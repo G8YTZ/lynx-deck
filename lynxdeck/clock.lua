@@ -13,7 +13,7 @@
 --                --script-opts=lynxclock-start=10:59:20  runs it from there.
 --
 -- At the top of the hour, while the clock is playing (not just cued), it adds
--- the sound: clock/junction/junction_HH.m4a (clock/make_junction.py), which
+-- the sound: clock/junction/junction_HH.flac (clock/make_junction.py), which
 -- starts at mm:59:30, pips from :55, the long pip on the hour, then the time.
 
 local mp = require "mp"
@@ -171,12 +171,17 @@ local function junction(h, m, s)
     fired_for = hour_mark
     local hour = (hour_mark / 3600) % 12
     if hour == 0 then hour = 12 end
-    local name = string.format("junction_%02d.m4a", hour)
-    local file = generic_dir .. name
-    if own_dir then
-        local f = io.open(own_dir .. name, "rb")
-        if f then f:close(); file = own_dir .. name end
+    -- this Deck's own first, then the generic ones; lossless .flac, or the
+    -- .m4a that 1.6 and 1.7 built until the sounds are rebuilt
+    local file = nil
+    for _, dir in ipairs({ own_dir or "", generic_dir }) do
+        for _, ext in ipairs({ "flac", "m4a" }) do
+            local path = string.format("%sjunction_%02d.%s", dir, hour, ext)
+            local f = dir ~= "" and io.open(path, "rb")
+            if f then f:close(); file = file or path end
+        end
     end
+    file = file or string.format("%sjunction_%02d.flac", generic_dir, hour)
     if junction_track then mp.commandv("audio-remove", tostring(junction_track)) end
     mp.commandv("audio-add", file, "select", "top of the hour")
     junction_track = mp.get_property_number("aid")
