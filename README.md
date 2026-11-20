@@ -261,17 +261,25 @@ effect at once. The clock fades up from black over half a second when it is
 called up, so the face and hands always arrive together.
 
 At the top of the hour, while the clock is playing (not just cued), it adds
-the sound from `clock/junction/junction_HH.m4a`: music from 59:30 (20 s), the
-six pips (short ones on :55 to :59, the long one starting exactly on the hour)
-and the time announcement after it. It runs on the clock's own time, offset
-included, so the long pip goes out with the minute hand on 12. If the clock is
-called up part way through, the sound joins at the right point. Build the
-twelve files with `clock/make_junction.py ANNOUNCEMENTS_DIR [MUSIC_FILE]`.
+the sound: music from 59:30 (20 s), the six pips (short ones on :55 to :59, the
+long one starting exactly on the hour) and the time announcement after it. It
+runs on the clock's own time, offset included, so the long pip goes out with
+the minute hand on 12. Called up part way through, it joins at the right point.
 
-`clock/GB3OO_Clock.png` and `clock/GB3JT_Clock.png` are the GB3OO and GB3JT
-faces (Deco Gold, 1920x1080); the hands are
-drawn to fit it. `clock/make_clock.py` draws the face and also renders whole clock
-clips as video files.
+**Each repeater's own clock** is set up on the web page, under *Station clock*,
+and kept in `/srv/lynxdeck/clock`, outside the code, so updates never touch it:
+
+- **Call sign, town, web address, clip number**, then *Make clock face*: the
+  Deck draws the Deco face with them and saves it as a numbered still
+  (`20_GB3OO_Clock.png`, say). Give it a number after your other clips.
+- **Announcements and music:** drop the twelve announcements (names ending 1
+  to 12) and the music (a name containing "music") on the panel. The Deck builds
+  its twelve top-of-the-hour sounds from them (`clock/make_junction.py`).
+
+A Deck with none of that uses the generic files in `clock/`: `Generic_Clock.png`
+and the pips alone, with no music or announcement. The face and sound builders
+need `python3-numpy` and `python3-pil` on the Pi. The fonts (Italiana, Julius
+Sans One, SIL Open Font Licence) are in `clock/fonts`.
 
 ## Media
 Put files in `/srv/lynxdeck/media`. Clip IDs follow filename order, so

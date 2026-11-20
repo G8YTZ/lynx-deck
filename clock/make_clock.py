@@ -12,9 +12,7 @@ it early by the chain delay so the hands are right on air.
   python3 make_clock.py still 10:09:32 [out.png]      # one frame
   python3 make_clock.py render 10:59:00 120 out.mp4   # a clip from that time
 
-Fonts, once, in this folder:
-  mkdir fonts && cd fonts && npm pack @fontsource/julius-sans-one @fontsource/italiana \
-    && for f in *.tgz; do tar xzf $f --one-top-level=${f%.tgz}; done
+The two fonts (Italiana, Julius Sans One) are in fonts/ beside this script.
 """
 import math
 from pathlib import Path
@@ -39,9 +37,9 @@ TEXT = (226, 196, 128)
 TEXT_SOFT = (150, 128, 84)
 EDGE = (10, 8, 5)                        # a dark keyline round each hand
 
-FD = str(Path(__file__).with_name("fonts")) + "/fontsource-%s-5.3.0/package/files/%s-latin-400-normal.woff"
-F_FIG = FD % ("italiana", "italiana")
-F_CAP = FD % ("julius-sans-one", "julius-sans-one")
+FONTS = Path(__file__).with_name("fonts")       # SIL Open Font Licence, see the OFL files
+F_FIG = str(FONTS / "italiana-latin-400-normal.woff")
+F_CAP = str(FONTS / "julius-sans-one-latin-400-normal.woff")
 
 _bg = None
 # call sign, town, web site; --station GB3JT,MAIDSTONE,gb3jt.co.uk for another

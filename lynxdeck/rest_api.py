@@ -17,7 +17,7 @@ from . import __version__
 from .engine import ClipNotFound, PlayerUnavailable
 from .library import STILL_EXT, VIDEO_EXT, _probe
 from .player import PlayerError
-from . import sysinfo
+from . import station_clock, sysinfo
 from .web_ui import PAGE
 
 SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]")
@@ -275,6 +275,72 @@ def build_app(cfg, engine, deck_server=None, state=None):
         log.info("Uploaded %s (%.1f MB, %s)", name, written / 1e6, probe["codec"])
         return {"name": name, "bytes": written, "codec": probe["codec"],
                 "clips": len(engine.library.clips)}
+
+    # --- the station clock: this Deck's face and top-of-the-hour sounds -------
+    @app.get("/clock")
+    async def clock_status():
+        return station_clock.status(cfg)
+
+    @app.put("/clock/sound/{filename}")
+    async def clock_sound(filename: str, request: Request, rebuild: int = 1,
+                          x_lynx_token: str = Header(default=None)):
+        """An announcement (name ending 1..12) or the music; rebuilds the sounds
+        unless ?rebuild=0 (the page sends a batch, then asks once)."""
+        check(x_lynx_token)
+        name = SAFE_NAME.sub("_", Path(filename).name)
+        tmp = Path(cfg.clock_dir) / f".upload-{name}"
+        tmp.parent.mkdir(parents=True, exist_ok=True)
+        written = 0
+        try:
+            with open(tmp, "wb") as f:
+                async for chunk in request.stream():
+                    written += len(chunk)
+                    if written > 50 * 1024 * 1024:
+                        raise HTTPException(413, "larger than 50 MB")
+                    f.write(chunk)
+            slot = await station_clock.save_sound(cfg, name, tmp)
+            if rebuild:
+                await station_clock.rebuild(cfg)
+        except station_clock.ClockError as exc:
+            raise HTTPException(400, str(exc))
+        except OSError as exc:
+            raise HTTPException(500, f"write failed: {exc}")
+        finally:
+            tmp.unlink(missing_ok=True)
+        return {"slot": slot, **station_clock.status(cfg)}
+
+    @app.post("/clock/rebuild")
+    async def clock_rebuild(x_lynx_token: str = Header(default=None)):
+        check(x_lynx_token)
+        try:
+            await station_clock.rebuild(cfg)
+        except station_clock.ClockError as exc:
+            raise HTTPException(500, str(exc))
+        return station_clock.status(cfg)
+
+    @app.delete("/clock/sound/{slot}")
+    async def clock_sound_delete(slot: str, x_lynx_token: str = Header(default=None)):
+        check(x_lynx_token)
+        key = "music" if slot == "music" else int(slot) if slot.isdigit() and 1 <= int(slot) <= 12 else None
+        if key is None or not station_clock.delete_sound(cfg, key):
+            raise HTTPException(404, "no such sound")
+        try:
+            await station_clock.rebuild(cfg)
+        except station_clock.ClockError as exc:
+            raise HTTPException(500, str(exc))
+        return station_clock.status(cfg)
+
+    @app.post("/clock/face")
+    async def clock_face(x_lynx_token: str = Header(default=None)):
+        """Draw the face with the saved call sign, town and web address."""
+        check(x_lynx_token)
+        try:
+            name = await station_clock.make_face(cfg, cfg.media_dir)
+        except station_clock.ClockError as exc:
+            raise HTTPException(500, f"could not draw the face: {exc}")
+        await engine.library.scan()
+        engine.notify_library_changed()
+        return {"name": name, "clips": len(engine.library.clips)}
 
     @app.delete("/media/{filename}")
     async def delete_media(filename: str, x_lynx_token: str = Header(default=None)):

@@ -8,13 +8,15 @@ One file per hour, each starting at mm:59:30 (G8YTZ, 20 Nov 2026):
   00:00  the long pip, 0.5 s; its start is the hour (Greenwich Time Signal)
   00:01  the time announcement for the new hour
 
-  python3 make_junction.py ANNOUNCEMENTS_DIR [MUSIC_FILE]
+  python3 make_junction.py [ANNOUNCEMENTS_DIR] [--music FILE] [--out DIR]
 
 ANNOUNCEMENTS_DIR holds one file per hour whose name ends in its number
-(..._1.mp3 .. ..._12.mp3, or -1.mp3 and so on). The results go in
-junction/junction_01.m4a .. junction_12.m4a beside this script, where
-clock.lua looks for them.
+(..._1.mp3 .. ..._12.mp3, or -1.mp3 and so on); an hour without one gets
+the pips alone. The results (junction_01.m4a .. junction_12.m4a) go in
+junction/ beside this script (the default every Deck starts with) or in
+--out: Lynx Deck builds each repeater's own in /srv/lynxdeck/clock/junction.
 """
+import argparse
 import re
 import subprocess
 import sys
@@ -60,22 +62,32 @@ def place(track, sound, at):
 
 
 def announcements(folder):
+    """{hour: file} for files whose names end in 1 to 12 (hour_7.mp3, ...-7.wav)."""
     found = {}
-    for f in Path(folder).iterdir():
-        m = re.search(r"(\d+)\.[^.]+$", f.name)
-        if m and 1 <= int(m.group(1)) <= 12:
-            found[int(m.group(1))] = f
-    missing = sorted(set(range(1, 13)) - set(found))
-    if missing:
-        sys.exit(f"no announcement for hour(s) {missing}")
+    if folder and Path(folder).is_dir():
+        for f in sorted(Path(folder).iterdir()):
+            m = re.search(r"(\d+)\.[^.]+$", f.name)
+            if m and 1 <= int(m.group(1)) <= 12:
+                found[int(m.group(1))] = f
     return found
 
 
 def main():
-    found = announcements(sys.argv[1])
-    music = decode(sys.argv[2])[: int(MUSIC_MAX * RATE)] if len(sys.argv) > 2 else None
-    out = Path(__file__).with_name("junction")
-    out.mkdir(exist_ok=True)
+    ap = argparse.ArgumentParser(description="Build the twelve top-of-the-hour sounds.")
+    ap.add_argument("announcements", nargs="?", help="folder of announcements ..1 to ..12")
+    ap.add_argument("--music", help="music for 59:30 (cut to 20 s with a fade if longer)")
+    ap.add_argument("--out", default=str(Path(__file__).with_name("junction")))
+    a = ap.parse_args()
+    found = announcements(a.announcements)
+    music = None
+    if a.music:
+        music = decode(a.music)
+        if len(music) > MUSIC_MAX * RATE:
+            music = music[: int(MUSIC_MAX * RATE)].copy()
+            n = RATE                                   # last second fades out
+            music[-n:] *= np.linspace(1, 0, n, dtype=np.float32)[:, None]
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
     for hour in range(1, 13):
         track = np.zeros((int(LENGTH * RATE), 2), dtype=np.float32)
         if music is not None:
@@ -83,15 +95,19 @@ def main():
         for at in PIPS_AT:
             place(track, pip(SHORT), at)
         place(track, pip(LONG), LONG_AT)
-        place(track, decode(found[hour], mono=True), ANNOUNCE_AT)
+        if hour in found:
+            place(track, decode(found[hour], mono=True), ANNOUNCE_AT)
         peak = float(np.abs(track).max())
         if peak > 0.98:
             track *= 0.98 / peak
-        dest = out / f"junction_{hour:02d}.m4a"
+        part = out / f".junction_{hour:02d}.m4a"
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(RATE), "-ac", "2",
-                        "-i", "-", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(dest)],
-                       input=track.tobytes(), check=True)
-        print(f"{dest.name}: {found[hour].name}, peak {20 * np.log10(peak):.1f} dBFS")
+                        "-i", "-", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
+                        "-f", "mp4", str(part)], input=track.tobytes(), check=True)
+        part.replace(out / f"junction_{hour:02d}.m4a")
+        what = found[hour].name if hour in found else "pips only"
+        print(f"junction_{hour:02d}.m4a: {what}{', music' if music is not None else ''}, "
+              f"peak {20 * np.log10(peak):.1f} dBFS", flush=True)
 
 
 if __name__ == "__main__":

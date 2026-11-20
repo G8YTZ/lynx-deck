@@ -21,6 +21,11 @@ class Config:
     # station clock (clock.lua): any still named ...clock.png gets live hands
     clock_offset: float = 0.0            # seconds ahead, to allow for coding and decoding delay
     clock_second: str = "sweep"          # sweep | tick
+    clock_dir: str = "/srv/lynxdeck/clock"   # this Deck's own clock sounds (station_clock.py)
+    clock_call: str = ""                 # on the face: call sign, town, web address
+    clock_town: str = ""
+    clock_web: str = ""
+    clock_clip: int = 99                 # the face's clip number in the media list
     default_clip: str = ""         # clip name or number: booted to, returned to, fallen back to
     default_behaviour: str = "auto"   # auto | once | loop | hold, for clips with no entry
     # player: mpv, hardware decode straight to a DRM overlay plane (zero copy)

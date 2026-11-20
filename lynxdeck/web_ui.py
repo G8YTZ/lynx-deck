@@ -144,6 +144,29 @@ PAGE = r"""<!doctype html>
   </div>
 
   <div class="panel">
+    <strong>Station clock</strong>
+    <table class="kv" style="margin-top:8px">
+      <tr><th>Call sign</th><td><input id="ck-call" maxlength="40" placeholder="GB3OO"></td></tr>
+      <tr><th>Town</th><td><input id="ck-town" maxlength="40" placeholder="FOLKESTONE"></td></tr>
+      <tr><th>Web address</th><td><input id="ck-web" maxlength="40" placeholder="gb3oo.co.uk"></td></tr>
+      <tr><th>Clip number</th><td><input type="number" id="ck-clip" min="1" max="99" step="1">
+        <span class="muted">(after your other clips, so their numbers stay put)</span></td></tr>
+    </table>
+    <div class="row" style="margin-top:12px">
+      <button onclick="makeFace()">Make clock face</button>
+      <span class="muted" id="ckmsg"></span>
+    </div>
+    <div id="ckdrop" class="drop" style="margin-top:12px">
+      Drop the twelve time announcements (names ending 1 to 12) and the music
+      (a name with &quot;music&quot; in it) here, or <label class="link">choose files
+      <input type="file" id="ckfile" multiple hidden accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg"></label>
+    </div>
+    <div class="muted" id="ckstatus" style="margin-top:8px"></div>
+    <div class="muted">Pips from :55, the long pip on the hour, the announcement after it;
+      music from 59:30 (20 s). The clock must be playing, not just cued.</div>
+  </div>
+
+  <div class="panel">
     <strong>Maintenance</strong>
     <div class="row" style="margin-top:10px">
       <button class="ghost" onclick="restartPlayer()">Restart player</button>
@@ -305,6 +328,64 @@ async function saveSettings() {
 }
 
 
+async function loadClock() {
+  const c = await api('/clock');
+  document.getElementById('ck-call').value = c.call;
+  document.getElementById('ck-town').value = c.town;
+  document.getElementById('ck-web').value = c.web;
+  document.getElementById('ck-clip').value = c.clip;
+  const hours = c.hours.length === 12 ? 'all twelve hours'
+    : c.hours.length ? 'hours ' + c.hours.join(', ') : 'none yet';
+  document.getElementById('ckstatus').innerHTML =
+    `Announcements: ${hours}. Music: ${c.music ? c.music +
+      ' <a class="link" onclick="delClockSound(\'music\')">remove</a>' : 'none'}.` +
+    ` Sounds in use: ${c.using}${c.built ? ' (built ' + c.built + ')' : ''}.`;
+}
+
+async function makeFace() {
+  const msg = document.getElementById('ckmsg');
+  msg.textContent = 'Drawing the face...';
+  try {
+    await api('/settings', 'PUT', {
+      clockCall: document.getElementById('ck-call').value.trim(),
+      clockTown: document.getElementById('ck-town').value.trim(),
+      clockWeb: document.getElementById('ck-web').value.trim(),
+      clockClip: Number(document.getElementById('ck-clip').value),
+    });
+    const r = await api('/clock/face', 'POST');
+    msg.textContent = 'Made ' + r.name + '. Set it to hold in the clip list.';
+    loadClips(); loadClock();
+  } catch (e) { msg.textContent = 'Failed: ' + e.message; }
+}
+
+async function delClockSound(slot) {
+  if (!confirm('Remove the ' + slot + '?')) return;
+  await api('/clock/sound/' + slot, 'DELETE');
+  loadClock();
+}
+
+function uploadClockSound(file) {
+  return new Promise(resolve => {
+    const st = document.getElementById('ckstatus');
+    st.textContent = 'Uploading ' + file.name + '...';
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', '/clock/sound/' + encodeURIComponent(file.name) + '?rebuild=0');
+    xhr.onload = () => {
+      if (xhr.status >= 300) alert(file.name + ' rejected: ' + xhr.responseText);
+      resolve();
+    };
+    xhr.onerror = () => { alert(file.name + ': upload failed'); resolve(); };
+    xhr.send(file);
+  });
+}
+
+async function uploadClockSounds(files) {
+  for (const f of files) await uploadClockSound(f);
+  document.getElementById('ckstatus').textContent = 'Building the top-of-the-hour sounds (a minute or so)...';
+  try { await api('/clock/rebuild', 'POST'); } catch (e) { alert('Could not build the sounds: ' + e.message); }
+  loadClock();
+}
+
 async function reboot() {
   if (confirm('Reboot the deck now?')) await api('/system/reboot', 'POST');
 }
@@ -396,6 +477,13 @@ document.addEventListener('DOMContentLoaded', () => {
   ['dragleave','drop'].forEach(ev => d.addEventListener(ev, e => {
     e.preventDefault(); d.classList.remove('over'); }));
   d.addEventListener('drop', e => uploadAll(e.dataTransfer.files));
+  const cd = document.getElementById('ckdrop');
+  ['dragenter','dragover'].forEach(ev => cd.addEventListener(ev, e => {
+    e.preventDefault(); cd.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev => cd.addEventListener(ev, e => {
+    e.preventDefault(); cd.classList.remove('over'); }));
+  cd.addEventListener('drop', e => uploadClockSounds(e.dataTransfer.files));
+  document.getElementById('ckfile').addEventListener('change', e => uploadClockSounds(e.target.files));
   document.getElementById('file').addEventListener('change', e => uploadAll(e.target.files));
 });
 
@@ -408,6 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
   checkUpdate();
   loadStatus();
   loadSettings();
+  loadClock();
   setInterval(refresh, 1000);
   setInterval(loadStatus, 5000);
 })();

@@ -18,6 +18,10 @@ EDITABLE = {
     "volume": ("volume", int),
     "clockOffset": ("clock_offset", float),
     "clockSecond": ("clock_second", str),
+    "clockCall": ("clock_call", str),
+    "clockTown": ("clock_town", str),
+    "clockWeb": ("clock_web", str),
+    "clockClip": ("clock_clip", int),
 }
 
 
@@ -71,6 +75,10 @@ class State:
                 raise ValueError("clockOffset must be between -10 and 10 seconds")
             if key == "clockSecond" and typed not in ("sweep", "tick"):
                 raise ValueError("clockSecond must be sweep or tick")
+            if key in ("clockCall", "clockTown", "clockWeb") and len(typed) > 40:
+                raise ValueError(key + " is too long (40 characters at most)")
+            if key == "clockClip" and not 1 <= typed <= 99:
+                raise ValueError("clockClip must be between 1 and 99")
             setattr(self.cfg, attr, typed)
             applied[key] = typed
         merged = self.current()

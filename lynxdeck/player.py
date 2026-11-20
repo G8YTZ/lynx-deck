@@ -193,7 +193,8 @@ class Mpv:
         """Tell clock.lua the offset and second-hand style; harmless if it is absent."""
         try:
             await self.command("script-message", "lynxclock", str(self.cfg.clock_offset),
-                               "yes" if self.cfg.clock_second == "tick" else "no")
+                               "yes" if self.cfg.clock_second == "tick" else "no",
+                               str(Path(self.cfg.clock_dir) / "junction") + "/")
         except PlayerError as exc:
             log.warning("Could not set the clock: %s", exc)
 

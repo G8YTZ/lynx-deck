@@ -6,7 +6,7 @@
 -- The face is the Deco Gold design from G8YTZ's countdown (19 Nov 2026), and
 -- the geometry below is in 1920x1080 units, matching that artwork.
 --
--- Settings come from Lynx Deck with:  script-message lynxclock <offset s> <tick yes|no>
+-- Settings come from Lynx Deck with:  script-message lynxclock <offset s> <tick yes|no> <sounds dir>
 --   offset: show the time this far ahead (the coding and transmission delay)
 --   tick:   second hand steps once a second instead of sweeping
 -- For testing:  --script-opts=lynxclock-fixed=10:09:32  freezes the time;
@@ -134,7 +134,8 @@ end
 -- in at 59:30 and the silence switched back before the sound runs out.
 local AHEAD, LENGTH = 30, 35    -- the sound starts 30 s before the hour
 local here = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("[^/]*$", "")
-local junction_dir = here .. "../clock/junction/"
+local generic_dir = here .. "../clock/junction/"   -- pips only, for any Deck
+local own_dir = nil                                -- this Deck's own (Lynx Deck tells us)
 local bed_track, junction_track, fired_for, warned_for, check_at = nil, nil, nil, nil, nil
 
 local function add_bed()
@@ -170,7 +171,12 @@ local function junction(h, m, s)
     fired_for = hour_mark
     local hour = (hour_mark / 3600) % 12
     if hour == 0 then hour = 12 end
-    local file = string.format("%sjunction_%02d.m4a", junction_dir, hour)
+    local name = string.format("junction_%02d.m4a", hour)
+    local file = generic_dir .. name
+    if own_dir then
+        local f = io.open(own_dir .. name, "rb")
+        if f then f:close(); file = own_dir .. name end
+    end
     if junction_track then mp.commandv("audio-remove", tostring(junction_track)) end
     mp.commandv("audio-add", file, "select", "top of the hour")
     junction_track = mp.get_property_number("aid")
@@ -259,9 +265,10 @@ mp.observe_property("idle-active", "bool", function(_, idle)
     end
 end)
 
-mp.register_script_message("lynxclock", function(off, tk)
+mp.register_script_message("lynxclock", function(off, tk, dir)
     offset = tonumber(off) or 0
     tick = tk == "yes"
+    if dir and dir ~= "" then own_dir = dir end
     mp.msg.info(string.format("clock offset %.2f s, %s", offset, tick and "ticking" or "sweeping"))
 end)
 

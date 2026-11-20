@@ -30,11 +30,12 @@ for cmd in mpv ffprobe python3 git; do
 done
 python3 -c "import yaml" 2>/dev/null || missing+=("python3-yaml")
 python3 -c "import fastapi, uvicorn" 2>/dev/null || missing+=("python3-fastapi/uvicorn")
+python3 -c "import numpy, PIL" 2>/dev/null || missing+=("python3-numpy python3-pil (station clock)")
 if [ ${#missing[@]} -gt 0 ]; then
   echo
   echo "Missing: ${missing[*]}"
   echo "Install them with:"
-  echo "  sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi python3-uvicorn libdrm-tests"
+  echo "  sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi python3-uvicorn python3-numpy python3-pil libdrm-tests"
   exit 1
 fi
 
