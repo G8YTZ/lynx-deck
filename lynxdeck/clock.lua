@@ -100,9 +100,24 @@ local function hand(deg, len, wid, tail)
     }
 end
 
+-- Fade up from black when the face arrives, so face and hands appear as one.
+-- The black goes up as the file loads (before its first frame), and starts
+-- to fade once mpv says the picture is showing.
+local FADE = 0.5          -- seconds
+local fading = nil        -- nil, "black" (waiting for the picture) or the fade's start time
+local BLACK = "{\\an7\\pos(0,0)\\shad0\\bord0\\1c&H000000&\\alpha&H%02X&\\p1}m 0 0 l 1920 0 1920 1080 0 1080{\\p0}"
+
+local function black(alpha)
+    return string.format(BLACK, alpha)
+end
+
 local function draw()
     local _, h, m, s = wall()
-    if not h then return end
+    if fading == "black" or not h then
+        overlay.data = black(0)
+        overlay:update()
+        return
+    end
     if tick then s = math.floor(s) end
     local mins = m + s / 60
     local hrs = (h % 12) + mins / 60
@@ -115,6 +130,14 @@ local function draw()
     ev[#ev + 1] = circle(-62, 10, a, LEAD, 0)
     ev[#ev + 1] = circle(0, 15, 0, LEAD, 0.5)
     ev[#ev + 1] = circle(0, 5, 0, EDGE, 0)
+    if fading then
+        local k = (mp.get_time() - fading) / FADE
+        if k >= 1 then
+            fading = nil
+        else
+            ev[#ev + 1] = black(math.floor(255 * k * k))   -- eased: slow out of black
+        end
+    end
     overlay.data = table.concat(ev, "\n")
     overlay:update()
 end
@@ -129,12 +152,32 @@ local function is_face(name)
     return stem:match("clock$") ~= nil
 end
 
-mp.observe_property("filename", "string", function(_, name)
-    if is_face(name) then
+-- On: black as the face file loads, fade once its picture shows.
+-- Off: the hands stay until the next clip's picture shows, then go.
+local showing = false
+
+mp.register_event("file-loaded", function()
+    if is_face(mp.get_property("filename")) then
         if not base_wall then calibrate() end
+        showing, fading = true, "black"
         timer:resume()
         draw()
-    else
+    end
+end)
+
+mp.register_event("playback-restart", function()
+    if is_face(mp.get_property("filename")) then
+        if fading == "black" then fading = mp.get_time() end
+    elseif showing then
+        showing, fading = false, nil
+        timer:kill()
+        overlay:remove()
+    end
+end)
+
+mp.observe_property("idle-active", "bool", function(_, idle)
+    if idle and showing then
+        showing, fading = false, nil
         timer:kill()
         overlay:remove()
     end

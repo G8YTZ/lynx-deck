@@ -257,7 +257,8 @@ behaviour so it stays up.
 Two settings on the web page: **Clock ahead by** runs the clock that many
 seconds early, to make up for the coding and transmission delay, so the hands
 are right on air; **Second hand** sweeps or ticks once a second. Both take
-effect at once.
+effect at once. The clock fades up from black over half a second when it is
+called up, so the face and hands always arrive together.
 
 `clock/GB3OO_Clock.png` and `clock/GB3JT_Clock.png` are the GB3OO and GB3JT
 faces (Deco Gold, 1920x1080); the hands are
