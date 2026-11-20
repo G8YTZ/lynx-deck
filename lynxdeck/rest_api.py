@@ -317,6 +317,11 @@ def build_app(cfg, engine, deck_server=None, state=None):
             raise HTTPException(404, "no such entry")
         return {"deleted": entry_id}
 
+    @app.get("/schedule/programmes")
+    async def schedule_programmes():
+        """For Lynx-Tx's guide (epg.py): the programme slots, Companion's way."""
+        return {"programmes": schedule().programmes(), "source": "Lynx Deck"}
+
     @app.get("/schedule/guide")
     async def schedule_guide(hours: int = 24 * 8):
         g = schedule().guide(days=max(1, hours) / 24)

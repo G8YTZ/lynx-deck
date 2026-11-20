@@ -278,6 +278,25 @@ class Scheduler:
 
     # ----- the guide -----------------------------------------------------
 
+    def programmes(self):
+        """The guide's programme slots in the form Lynx-Tx's epg.py builds
+        from Companion (title, minutes, hh, mm, days with 0 = Sunday), so
+        Lynx-Tx can read the Deck instead. An hourly entry is 24 slots."""
+        out = []
+        for e in self.entries:
+            if not (e["enabled"] and e["title"]):
+                continue
+            hourly = e["repeat"] == "hourly"
+            secs = parse_time(e["time"], hourly)
+            hours = range(24) if hourly else [secs // 3600]
+            mm = (secs // 60) % 60
+            for hh in hours:
+                out.append({"title": e["title"], "minutes": e["minutes"], "hh": hh, "mm": mm,
+                            "days": sorted((d + 1) % 7 for d in e["days"]), "trigger": e["id"]})
+        out.sort(key=lambda p: (p["hh"], p["mm"], p["title"]))
+        return out
+
+
     def guide(self, days=8):
         """Programmes (entries with a title) from now for `days`, as
         epg.py builds them from Companion: start, minutes, title; a programme
