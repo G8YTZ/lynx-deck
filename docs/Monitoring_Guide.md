@@ -72,11 +72,14 @@ Two ready-made files in [`docs/home_assistant`](home_assistant):
   `configuration.yaml`. The Deck's address is in the first sensor only; the
   rest copy it, so moving the Deck to another network is a one-line change.
 - **[`lynx_deck_dashboard.yaml`](home_assistant/lynx_deck_dashboard.yaml):** A
-  *Playout* section for a Sections dashboard: coloured tiles for the Deck, the
-  player, the HDMI output, NTP and missed cuts; the clip on the output and what
-  the schedule says; gauges for temperature and load; the counters; and a
-  24-hour history. In the dashboard's raw configuration editor, paste it into a
-  view's `sections:` list.
+  *Lynx Deck* section for a Sections dashboard, as on GB3OO's: coloured tiles
+  for the Deck, the player, the HDMI output, NTP and missed cuts; the clip on
+  the output and what the schedule says; small gauges for temperature and load;
+  the counters as tiles, three to a row; and a 24-hour history. To add it: on
+  the dashboard, the pencil (edit mode), **Create section**, then the new
+  section's three dots, **Edit in YAML**; select all, paste, save. (The
+  dashboard's *raw configuration editor* holds every view at once, so a
+  section pasted there won't save.)
 
 Check the configuration (Developer tools, YAML, Check configuration), then
 restart Home Assistant: a YAML reload does not load new SNMP sensors.
