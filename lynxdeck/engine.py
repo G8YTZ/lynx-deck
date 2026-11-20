@@ -53,6 +53,7 @@ class Engine:
         self._grace_until = 0.0
         self._restarts = 0               # consecutive failed restarts
         self._last_restart = 0.0
+        self.scheduler = None            # set by __main__ (scheduler.py)
 
     # ----- lifecycle -------------------------------------------------------
 
@@ -168,6 +169,15 @@ class Engine:
             await self.player.play()
             self.status = "play"
             self._arm_still_timer(self.library.get(self.clip_id))
+            self._mark_progress()
+            self._notify()
+
+    async def scheduled_play(self, clip_id, resume=0.0):
+        """The schedule's cut: load and play, part way in after a restart."""
+        async with self._guard():
+            await self._load(clip_id, resume=resume, play=True)
+            self.status = "play"
+            self._arm_still_timer(self.library.get(clip_id))
             self._mark_progress()
             self._notify()
 

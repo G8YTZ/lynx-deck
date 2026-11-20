@@ -190,6 +190,10 @@ local function junction(h, m, s)
     mp.msg.info(string.format("top of the hour: %s from %.2f s", file, pos))
 end
 
+-- Fade to black before a scheduled cut (Lynx Deck's schedule asks, a
+-- second ahead); the black stays until the next clip's picture replaces it.
+local fade_out = nil      -- {start, seconds}
+
 local function draw()
     local _, h, m, s = wall()
     if h and fading ~= "black" then junction(h, m, s) end
@@ -210,7 +214,10 @@ local function draw()
     ev[#ev + 1] = circle(-62, 10, a, LEAD, 0)
     ev[#ev + 1] = circle(0, 15, 0, LEAD, 0.5)
     ev[#ev + 1] = circle(0, 5, 0, EDGE, 0)
-    if fading then
+    if fade_out then
+        local k = math.min(1, (mp.get_time() - fade_out[1]) / fade_out[2])
+        ev[#ev + 1] = black(math.floor(255 * (1 - k)))
+    elseif fading then
         local k = (mp.get_time() - fading) / FADE
         if k >= 1 then
             fading = nil
@@ -241,6 +248,7 @@ mp.register_event("file-loaded", function()
         if not base_wall then calibrate() end
         showing, fading = true, "black"
         fired_for, warned_for, junction_track, check_at = nil, nil, nil, nil
+        fade_out = nil
         add_bed()                                -- a new file: its own silent track
         timer:resume()
         draw()
@@ -263,6 +271,10 @@ mp.observe_property("idle-active", "bool", function(_, idle)
         timer:kill()
         overlay:remove()
     end
+end)
+
+mp.register_script_message("lynxclock-fadeout", function(secs)
+    if showing then fade_out = { mp.get_time(), math.max(0.1, tonumber(secs) or 1) } end
 end)
 
 mp.register_script_message("lynxclock", function(off, tk, dir)

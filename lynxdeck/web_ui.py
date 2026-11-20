@@ -50,7 +50,8 @@ PAGE = r"""<!doctype html>
 </style>
 </head>
 <body>
-<header>Lynx Deck <span id="model"></span></header>
+<header>Lynx Deck <span id="model"></span>
+  <a href="/schedule" style="float:right;color:#fff;font-size:14px;font-weight:400">Schedule</a></header>
 <main>
   <div class="panel">
     <div class="row" style="justify-content:space-between">

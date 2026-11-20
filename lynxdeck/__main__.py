@@ -9,6 +9,7 @@ from . import __version__, config
 from .engine import Engine
 from .deck_protocol import DeckServer
 from .library import Library
+from .scheduler import Scheduler
 from .state import State
 from .rest_api import serve as serve_http
 
@@ -22,6 +23,8 @@ async def run(cfg):
     await library.scan()
     engine = Engine(cfg, library)
     await engine.start()
+    engine.scheduler = Scheduler(cfg, engine)
+    engine.scheduler.start()
     server = DeckServer(cfg, engine)
     await server.start()
     http_task = asyncio.create_task(serve_http(cfg, engine, server, state))
@@ -34,6 +37,7 @@ async def run(cfg):
 
     log.info("Shutting down")
     http_task.cancel()
+    await engine.scheduler.close()
     await server.close()
     await engine.close()
 

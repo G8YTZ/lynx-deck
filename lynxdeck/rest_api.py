@@ -10,7 +10,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import Body, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from . import __version__
@@ -19,6 +19,8 @@ from .library import STILL_EXT, VIDEO_EXT, _probe
 from .player import PlayerError
 from . import station_clock, sysinfo
 from .web_ui import PAGE
+from .schedule_ui import PAGE as SCHEDULE_PAGE
+from . import scheduler as sched
 
 SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]")
 # what the Pi 4 can actually hardware-decode
@@ -277,6 +279,74 @@ def build_app(cfg, engine, deck_server=None, state=None):
                 "clips": len(engine.library.clips)}
 
     # --- the station clock: this Deck's face and top-of-the-hour sounds -------
+    # --- the schedule ------------------------------------------------------
+    def schedule():
+        s = getattr(engine, "scheduler", None)
+        if s is None:
+            raise HTTPException(503, "the schedule is not running")
+        return s
+
+    @app.get("/schedule", response_class=HTMLResponse)
+    async def schedule_page():
+        return SCHEDULE_PAGE
+
+    @app.get("/schedule/entries")
+    async def schedule_entries():
+        s = schedule()
+        found = s.latest_before(s.now())
+        now = None
+        if found:
+            at, e = found
+            now = {"id": e["id"], "title": e["title"], "clip": e["clip"],
+                   "at": at.strftime("%a %H:%M:%S")}
+        return {"entries": s.entries, "now": now, "last_fired": s.last_fired,
+                "offset": cfg.clock_offset}
+
+    @app.put("/schedule/entries")
+    async def schedule_put(body: dict = Body(...), x_lynx_token: str = Header(default=None)):
+        check(x_lynx_token)
+        try:
+            return schedule().put(body)
+        except sched.ScheduleError as exc:
+            raise HTTPException(400, str(exc))
+
+    @app.delete("/schedule/entries/{entry_id}")
+    async def schedule_delete(entry_id: str, x_lynx_token: str = Header(default=None)):
+        check(x_lynx_token)
+        if not schedule().delete(entry_id):
+            raise HTTPException(404, "no such entry")
+        return {"deleted": entry_id}
+
+    @app.get("/schedule/guide")
+    async def schedule_guide(hours: int = 24 * 8):
+        g = schedule().guide(days=max(1, hours) / 24)
+        return {"guide": g}
+
+    @app.post("/schedule/import")
+    async def schedule_import(request: Request, companion: str = "",
+                              x_lynx_token: str = Header(default=None)):
+        """Companion's EPG: triggers, from its address or an uploaded export."""
+        check(x_lynx_token)
+        try:
+            if companion:
+                triggers = await asyncio.to_thread(sched.fetch_companion, companion)
+            else:
+                data = await request.body()
+                triggers = sched.load_export(data)
+        except Exception as exc:
+            raise HTTPException(400, f"could not read Companion's triggers: {exc}")
+        s = schedule()
+        new, notes = sched.from_companion(triggers, engine.library.clips)
+        have = {(e["repeat"], e["time"], tuple(e["days"]), e["title"]) for e in s.entries}
+        added = skipped = 0
+        for e in new:
+            if (e["repeat"], e["time"], tuple(e["days"]), e["title"]) in have:
+                skipped += 1
+                continue
+            s.put(e)
+            added += 1
+        return {"added": added, "skipped": skipped, "notes": notes}
+
     @app.get("/clock")
     async def clock_status():
         return station_clock.status(cfg)

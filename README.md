@@ -249,6 +249,28 @@ and the deck always ends up showing something sensible, whatever goes wrong.
 The controller's own `single clip` flag always takes precedence over per-clip
 behaviour, so Companion and an ATEM behave exactly as they expect to.
 
+## The schedule
+The **Schedule** page (link at the top of the Deck's page, or `/schedule`)
+replaces Companion's time-of-day triggers. Each entry cuts to a clip at a time
+of day on chosen days, or **every hour** at mm:ss (the clock at 58:56, say);
+after the cut, the clip does what its behaviour says, as before.
+
+- **Times are on-air times:** the Deck cuts early by the clock's *ahead by*
+  setting, so a 19:00 programme reaches viewers at 19:00.
+- **The guide:** give an entry a guide title (and a length if not an hour) and
+  it is a programme, as Companion's `EPG:` triggers were. Entries without one
+  (the clock, idents) are scheduled but stay out of the guide.
+  `/schedule/guide` lists the programmes for the next eight days.
+- **After a restart** the Deck rejoins what the schedule says should be on air,
+  part way through; if that clip would have finished, it stays on the default
+  slide.
+- **The clock fades to black** a second before a scheduled cut away from it.
+- **Import from Companion:** the page reads Companion's `EPG:` triggers (from
+  its address, or an export file) and adds them, with the clip where the
+  trigger's actions name one. Check them afterwards.
+
+Kept in `schedule.json` beside the state file.
+
 ## The station clock
 Any still whose name ends in `clock` (`05_GB3OO_Clock.png`, say) is a clock
 face: while it is on screen, `lynxdeck/clock.lua` draws the hour, minute and
