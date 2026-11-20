@@ -260,6 +260,14 @@ are right on air; **Second hand** sweeps or ticks once a second. Both take
 effect at once. The clock fades up from black over half a second when it is
 called up, so the face and hands always arrive together.
 
+At the top of the hour, while the clock is playing (not just cued), it adds
+the sound from `clock/junction/junction_HH.m4a`: music from 59:30 (20 s), the
+six pips (short ones on :55 to :59, the long one starting exactly on the hour)
+and the time announcement after it. It runs on the clock's own time, offset
+included, so the long pip goes out with the minute hand on 12. If the clock is
+called up part way through, the sound joins at the right point. Build the
+twelve files with `clock/make_junction.py ANNOUNCEMENTS_DIR [MUSIC_FILE]`.
+
 `clock/GB3OO_Clock.png` and `clock/GB3JT_Clock.png` are the GB3OO and GB3JT
 faces (Deco Gold, 1920x1080); the hands are
 drawn to fit it. `clock/make_clock.py` draws the face and also renders whole clock

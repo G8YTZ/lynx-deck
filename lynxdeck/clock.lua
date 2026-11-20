@@ -9,10 +9,15 @@
 -- Settings come from Lynx Deck with:  script-message lynxclock <offset s> <tick yes|no>
 --   offset: show the time this far ahead (the coding and transmission delay)
 --   tick:   second hand steps once a second instead of sweeping
--- For testing:  --script-opts=lynxclock-fixed=10:09:32  freezes the time.
+-- For testing:  --script-opts=lynxclock-fixed=10:09:32  freezes the time;
+--                --script-opts=lynxclock-start=10:59:20  runs it from there.
+--
+-- At the top of the hour, while the clock is playing (not just cued), it adds
+-- the sound: clock/junction/junction_HH.m4a (clock/make_junction.py), which
+-- starts at mm:59:30, pips from :55, the long pip on the hour, then the time.
 
 local mp = require "mp"
-local opts = { offset = 0, tick = "no", fixed = "" }
+local opts = { offset = 0, tick = "no", fixed = "", start = "" }
 require("mp.options").read_options(opts, "lynxclock")
 
 local offset = tonumber(opts.offset) or 0
@@ -48,10 +53,21 @@ local function calibrate()
     end)
 end
 
+local function hms(text)
+    local h, m, s = text:match("(%d+):(%d+):?([%d%.]*)")
+    return tonumber(h), tonumber(m), tonumber(s) or 0
+end
+local started = mp.get_time()
+
 local function wall()
     if opts.fixed ~= "" then
-        local h, m, s = opts.fixed:match("(%d+):(%d+):?([%d%.]*)")
-        return nil, tonumber(h), tonumber(m), tonumber(s) or 0
+        local h, m, s = hms(opts.fixed)
+        return nil, h, m, s
+    end
+    if opts.start ~= "" then
+        local h, m, s = hms(opts.start)
+        local t = h * 3600 + m * 60 + s + (mp.get_time() - started)
+        return t, math.floor(t / 3600) % 24, math.floor(t / 60) % 60, t % 60
     end
     if not base_wall then return nil end
     local t = base_wall + (mp.get_time() - base_mono) + offset
@@ -111,8 +127,66 @@ local function black(alpha)
     return string.format(BLACK, alpha)
 end
 
+-- The top of the hour: sound from 30 s before the hour, kept to the clock.
+-- A still has no timeline of its own, and a sound added to it would end the
+-- "file" when it finished (the Deck would see the clip end and stop). So the
+-- face gets an endless silent track as it loads, the hour's sound is switched
+-- in at 59:30 and the silence switched back before the sound runs out.
+local LEAD, LENGTH = 30, 35
+local here = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("[^/]*$", "")
+local junction_dir = here .. "../clock/junction/"
+local bed_track, junction_track, fired_for, warned_for, check_at = nil, nil, nil, nil, nil
+
+local function add_bed()
+    mp.commandv("audio-add", "av://lavfi:anullsrc=r=48000:cl=stereo", "select", "silence")
+    bed_track = mp.get_property_number("aid")
+end
+
+local function junction(h, m, s)
+    local t = h * 3600 + m * 60 + s
+    local hour_mark = math.floor((t + LEAD) / 3600) * 3600
+    local pos = t + LEAD - hour_mark            -- seconds into the sound
+    if junction_track and mp.get_property_number("aid") == junction_track then
+        if pos >= LENGTH - 0.5 then
+            mp.set_property_number("aid", bed_track)  -- back to silence before it ends
+        elseif check_at and mp.get_time() >= check_at then
+            check_at = nil
+            local a = mp.get_property_number("audio-pts")
+            if a and math.abs(a - pos) > 0.03 then
+                mp.commandv("seek", string.format("%.3f", pos), "absolute+exact")
+                mp.msg.info(string.format("top of the hour sound %.3f s out: corrected", a - pos))
+            end
+        end
+        return
+    end
+    if pos >= LENGTH - 1 or fired_for == hour_mark or not bed_track then return end
+    if mp.get_property_bool("pause") then
+        if warned_for ~= hour_mark then
+            warned_for = hour_mark
+            mp.msg.warn("clock cued but not playing: no top-of-the-hour sound yet")
+        end
+        return
+    end
+    fired_for = hour_mark
+    local hour = (hour_mark / 3600) % 12
+    if hour == 0 then hour = 12 end
+    local file = string.format("%sjunction_%02d.m4a", junction_dir, hour)
+    if junction_track then mp.commandv("audio-remove", tostring(junction_track)) end
+    mp.commandv("audio-add", file, "select", "top of the hour")
+    junction_track = mp.get_property_number("aid")
+    if junction_track == bed_track then         -- the file was not there
+        junction_track = nil
+        mp.msg.warn("no top-of-the-hour sound: " .. file)
+        return
+    end
+    mp.commandv("seek", string.format("%.3f", pos), "absolute+exact")
+    check_at = mp.get_time() + 1
+    mp.msg.info(string.format("top of the hour: %s from %.2f s", file, pos))
+end
+
 local function draw()
     local _, h, m, s = wall()
+    if h and fading ~= "black" then junction(h, m, s) end
     if fading == "black" or not h then
         overlay.data = black(0)
         overlay:update()
@@ -160,6 +234,8 @@ mp.register_event("file-loaded", function()
     if is_face(mp.get_property("filename")) then
         if not base_wall then calibrate() end
         showing, fading = true, "black"
+        fired_for, warned_for, junction_track, check_at = nil, nil, nil, nil
+        add_bed()                                -- a new file: its own silent track
         timer:resume()
         draw()
     end
