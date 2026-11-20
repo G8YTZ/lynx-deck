@@ -132,7 +132,7 @@ end
 -- "file" when it finished (the Deck would see the clip end and stop). So the
 -- face gets an endless silent track as it loads, the hour's sound is switched
 -- in at 59:30 and the silence switched back before the sound runs out.
-local LEAD, LENGTH = 30, 35
+local AHEAD, LENGTH = 30, 35    -- the sound starts 30 s before the hour
 local here = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("[^/]*$", "")
 local junction_dir = here .. "../clock/junction/"
 local bed_track, junction_track, fired_for, warned_for, check_at = nil, nil, nil, nil, nil
@@ -144,8 +144,8 @@ end
 
 local function junction(h, m, s)
     local t = h * 3600 + m * 60 + s
-    local hour_mark = math.floor((t + LEAD) / 3600) * 3600
-    local pos = t + LEAD - hour_mark            -- seconds into the sound
+    local hour_mark = math.floor((t + AHEAD) / 3600) * 3600
+    local pos = t + AHEAD - hour_mark            -- seconds into the sound
     if junction_track and mp.get_property_number("aid") == junction_track then
         if pos >= LENGTH - 0.5 then
             mp.set_property_number("aid", bed_track)  -- back to silence before it ends
