@@ -1,0 +1,131 @@
+# Lynx Deck (SNMP). These go under your one existing "sensor:" key,
+# in place of the seven Lynx Deck sensors added earlier.
+# The Deck's address is set once, in the first sensor: the others copy it
+# (<<: *lynx_deck), so moving the Deck to site is a one-line change.
+
+  - &lynx_deck
+    platform: snmp
+    host: 192.168.40.117
+    community: lynx
+    version: "2c"
+    name: Lynx Deck clip
+    unique_id: lynx_deck_clip
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.3.0
+
+  - <<: *lynx_deck
+    name: Lynx Deck state
+    unique_id: lynx_deck_state
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.1.0
+    value_template: >-
+      {{ {'1': 'playing', '2': 'stopped', '3': 'player fault', '4': 'not answering'}.get(value, 'unknown') }}
+
+  - <<: *lynx_deck
+    name: Lynx Deck player
+    unique_id: lynx_deck_player_state
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.2.0
+    value_template: >-
+      {{ {'1': 'ok', '2': 'stalled', '3': 'restarting'}.get(value, 'unknown') }}
+
+  - <<: *lynx_deck
+    name: Lynx Deck clip number
+    unique_id: lynx_deck_clip_index
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.4.0
+
+  - <<: *lynx_deck
+    name: Lynx Deck clips
+    unique_id: lynx_deck_clip_count
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.5.0
+
+  - <<: *lynx_deck
+    name: Lynx Deck decoder drops
+    unique_id: lynx_deck_decoder_drops
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.6.0
+    state_class: total_increasing
+
+  - <<: *lynx_deck
+    name: Lynx Deck late frames
+    unique_id: lynx_deck_late_frames
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.7.0
+    state_class: total_increasing
+
+  - <<: *lynx_deck
+    name: Lynx Deck player restarts
+    unique_id: lynx_deck_player_restarts
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.8.0
+    state_class: total_increasing
+
+  - <<: *lynx_deck
+    name: Lynx Deck clock synchronised
+    unique_id: lynx_deck_time_synced
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.9.0
+    value_template: "{{ 'yes' if value == '1' else 'no' }}"
+
+  - <<: *lynx_deck
+    name: Lynx Deck schedule entries
+    unique_id: lynx_deck_schedule_entries
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.10.0
+
+  - <<: *lynx_deck
+    name: Lynx Deck schedule on air
+    unique_id: lynx_deck_schedule_on_air
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.11.0
+
+  - <<: *lynx_deck
+    name: Lynx Deck scheduled cuts
+    unique_id: lynx_deck_schedule_cuts
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.12.0
+    state_class: total_increasing
+
+  - <<: *lynx_deck
+    name: Lynx Deck missed cuts
+    unique_id: lynx_deck_schedule_misses
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.13.0
+    state_class: total_increasing
+
+  - <<: *lynx_deck
+    name: Lynx Deck HDMI
+    unique_id: lynx_deck_hdmi
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.14.0
+    value_template: "{{ 'connected' if value == '1' else 'nothing' }}"
+
+  - <<: *lynx_deck
+    name: Lynx Deck CPU temperature
+    unique_id: lynx_deck_cpu_temp
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.15.0
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    value_template: "{{ (value | int / 10) | round(1) }}"
+
+  - <<: *lynx_deck
+    name: Lynx Deck uptime
+    unique_id: lynx_deck_uptime
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.16.0
+    unit_of_measurement: "d"
+    value_template: "{{ (value | int / 86400) | round(1) }}"
+
+  - <<: *lynx_deck
+    name: Lynx Deck CPU load
+    unique_id: lynx_deck_cpu_load
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.17.0
+    unit_of_measurement: "%"
+    state_class: measurement
+
+  - <<: *lynx_deck
+    name: Lynx Deck free space
+    unique_id: lynx_deck_disk_free
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.18.0
+    unit_of_measurement: "MB"
+    device_class: data_size
+    state_class: measurement
+
+  - <<: *lynx_deck
+    name: Lynx Deck version
+    unique_id: lynx_deck_version
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.19.0
+
+  - <<: *lynx_deck
+    name: Lynx Deck clock ahead by
+    unique_id: lynx_deck_clock_offset
+    baseoid: 1.3.6.1.4.1.8072.9999.1.3.20.0
+    unit_of_measurement: "ms"

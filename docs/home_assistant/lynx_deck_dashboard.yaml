@@ -1,0 +1,203 @@
+      - type: grid
+        cards:
+          - type: heading
+            heading: Playout
+            icon: mdi:play-box-multiple
+          - type: tile
+            entity: sensor.lynx_deck_state
+            name: Lynx Deck
+            color: green
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_state
+                state: playing
+          - type: tile
+            entity: sensor.lynx_deck_state
+            name: Lynx Deck
+            color: teal
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_state
+                state: stopped
+          - type: tile
+            entity: sensor.lynx_deck_state
+            name: Lynx Deck
+            color: red
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_state
+                state_not:
+                  - playing
+                  - stopped
+          - type: tile
+            entity: sensor.lynx_deck_player
+            name: Player
+            color: green
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_player
+                state: ok
+          - type: tile
+            entity: sensor.lynx_deck_player
+            name: Player
+            color: amber
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_player
+                state_not: ok
+          - type: tile
+            entity: sensor.lynx_deck_hdmi
+            name: HDMI out
+            color: green
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_hdmi
+                state: connected
+          - type: tile
+            entity: sensor.lynx_deck_hdmi
+            name: HDMI out
+            color: red
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_hdmi
+                state_not: connected
+          - type: tile
+            entity: sensor.lynx_deck_clock_synchronised
+            name: NTP
+            color: green
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_clock_synchronised
+                state: "yes"
+          - type: tile
+            entity: sensor.lynx_deck_clock_synchronised
+            name: NTP
+            color: amber
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_clock_synchronised
+                state_not: "yes"
+          - type: tile
+            entity: sensor.lynx_deck_missed_cuts
+            name: Missed cuts
+            icon: mdi:calendar-alert
+            color: green
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_missed_cuts
+                state: "0"
+          - type: tile
+            entity: sensor.lynx_deck_missed_cuts
+            name: Missed cuts
+            icon: mdi:calendar-alert
+            color: red
+            grid_options:
+              columns: 4
+            visibility:
+              - condition: state
+                entity: sensor.lynx_deck_missed_cuts
+                state_not: "0"
+          - type: tile
+            entity: sensor.lynx_deck_clip
+            name: On the output
+            icon: mdi:filmstrip
+            grid_options:
+              columns: full
+          - type: tile
+            entity: sensor.lynx_deck_schedule_on_air
+            name: Schedule says
+            icon: mdi:calendar-clock
+            grid_options:
+              columns: full
+          - type: gauge
+            entity: sensor.lynx_deck_cpu_temperature
+            name: Deck Core
+            min: 20
+            max: 90
+            needle: true
+            severity:
+              green: 40
+              yellow: 70
+              red: 80
+            grid_options:
+              columns: 6
+              rows: auto
+          - type: gauge
+            entity: sensor.lynx_deck_cpu_load
+            name: Deck Load
+            needle: true
+            severity:
+              green: 0
+              yellow: 60
+              red: 80
+            grid_options:
+              columns: 6
+              rows: auto
+          - type: entities
+            entities:
+              - entity: sensor.lynx_deck_clip_number
+                name: Clip number
+                icon: mdi:numeric
+              - entity: sensor.lynx_deck_clips
+                name: Clips in the library
+                icon: mdi:folder-play
+              - entity: sensor.lynx_deck_schedule_entries
+                name: Schedule entries on
+                icon: mdi:calendar-check
+              - entity: sensor.lynx_deck_scheduled_cuts
+                name: Scheduled cuts made
+                icon: mdi:content-cut
+              - entity: sensor.lynx_deck_decoder_drops
+                name: Decoder drops
+                icon: mdi:filmstrip-off
+              - entity: sensor.lynx_deck_late_frames
+                name: Late frames
+                icon: mdi:timer-alert-outline
+              - entity: sensor.lynx_deck_player_restarts
+                name: Player restarts
+                icon: mdi:restart
+              - entity: sensor.lynx_deck_clock_ahead_by
+                name: Clock ahead by
+                icon: mdi:clock-fast
+              - entity: sensor.lynx_deck_free_space
+                name: Free space
+                icon: mdi:sd
+              - entity: sensor.lynx_deck_uptime
+                name: Pi uptime
+                icon: mdi:timer-outline
+              - entity: sensor.lynx_deck_version
+                name: Version
+                icon: mdi:tag-outline
+            grid_options:
+              columns: full
+          - type: history-graph
+            grid_options:
+              columns: full
+              rows: 4
+            entities:
+              - entity: sensor.lynx_deck_state
+                name: Deck
+              - entity: sensor.lynx_deck_clip
+                name: Clip
+            title: Last 24 hours
+            hours_to_show: 24

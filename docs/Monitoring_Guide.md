@@ -64,73 +64,22 @@ read empty or zero: an alarm, as it should be.
 
 ## Home Assistant
 
-In `configuration.yaml`, with the Deck's address in place of
-`192.168.40.117`:
+Two ready-made files in [`docs/home_assistant`](home_assistant):
 
-```yaml
-sensor:
-  - platform: snmp
-    name: Lynx Deck state
-    unique_id: lynx_deck_state
-    host: 192.168.40.117
-    community: lynx
-    version: "2c"
-    baseoid: 1.3.6.1.4.1.8072.9999.1.3.1.0
-    value_template: >-
-      {{ {'1': 'playing', '2': 'stopped', '3': 'player fault', '4': 'not answering'}.get(value, 'unknown') }}
+- **[`lynx_deck_sensors.yaml`](home_assistant/lynx_deck_sensors.yaml):** All
+  20 values as sensors, with the states in words (*playing*, *ok*, *yes*) and
+  units where they have one. Paste them under the one `sensor:` key in
+  `configuration.yaml`. The Deck's address is in the first sensor only; the
+  rest copy it, so moving the Deck to another network is a one-line change.
+- **[`lynx_deck_dashboard.yaml`](home_assistant/lynx_deck_dashboard.yaml):** A
+  *Playout* section for a Sections dashboard: coloured tiles for the Deck, the
+  player, the HDMI output, NTP and missed cuts; the clip on the output and what
+  the schedule says; gauges for temperature and load; the counters; and a
+  24-hour history. In the dashboard's raw configuration editor, paste it into a
+  view's `sections:` list.
 
-  - platform: snmp
-    name: Lynx Deck clip
-    unique_id: lynx_deck_clip
-    host: 192.168.40.117
-    community: lynx
-    version: "2c"
-    baseoid: 1.3.6.1.4.1.8072.9999.1.3.3.0
-
-  - platform: snmp
-    name: Lynx Deck clock synchronised
-    unique_id: lynx_deck_time_synced
-    host: 192.168.40.117
-    community: lynx
-    version: "2c"
-    baseoid: 1.3.6.1.4.1.8072.9999.1.3.9.0
-    value_template: "{{ 'yes' if value == '1' else 'no' }}"
-
-  - platform: snmp
-    name: Lynx Deck schedule on air
-    unique_id: lynx_deck_schedule_on_air
-    host: 192.168.40.117
-    community: lynx
-    version: "2c"
-    baseoid: 1.3.6.1.4.1.8072.9999.1.3.11.0
-
-  - platform: snmp
-    name: Lynx Deck missed cuts
-    unique_id: lynx_deck_schedule_misses
-    host: 192.168.40.117
-    community: lynx
-    version: "2c"
-    baseoid: 1.3.6.1.4.1.8072.9999.1.3.13.0
-
-  - platform: snmp
-    name: Lynx Deck CPU temperature
-    unique_id: lynx_deck_cpu_temp
-    host: 192.168.40.117
-    community: lynx
-    version: "2c"
-    baseoid: 1.3.6.1.4.1.8072.9999.1.3.15.0
-    unit_of_measurement: "°C"
-    value_template: "{{ (value | int / 10) | round(1) }}"
-
-  - platform: snmp
-    name: Lynx Deck free space
-    unique_id: lynx_deck_disk_free
-    host: 192.168.40.117
-    community: lynx
-    version: "2c"
-    baseoid: 1.3.6.1.4.1.8072.9999.1.3.18.0
-    unit_of_measurement: "MB"
-```
+Check the configuration (Developer tools, YAML, Check configuration), then
+restart Home Assistant: a YAML reload does not load new SNMP sensors.
 
 An automation to tell you when something is wrong:
 
