@@ -23,7 +23,7 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 REPO_CLOCK = Path(__file__).resolve().parent.parent / "clock"
-AUDIO_EXT = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus"}
+AUDIO_EXT = {".mp3", ".wav", ".aif", ".aiff", ".m4a", ".aac", ".flac", ".ogg", ".opus"}
 
 
 class ClockError(Exception):

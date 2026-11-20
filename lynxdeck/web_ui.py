@@ -160,7 +160,7 @@ PAGE = r"""<!doctype html>
     <div id="ckdrop" class="drop" style="margin-top:12px">
       Drop the twelve time announcements (names ending 1 to 12) and the music
       (a name with &quot;music&quot; in it) here, or <label class="link">choose files
-      <input type="file" id="ckfile" multiple hidden accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg"></label>
+      <input type="file" id="ckfile" multiple hidden accept="audio/*,.mp3,.wav,.aif,.aiff,.m4a,.aac,.flac,.ogg,.opus"></label>
     </div>
     <div class="muted" id="ckstatus" style="margin-top:8px"></div>
     <div class="muted">Pips from :55, the long pip on the hour, the announcement after it;

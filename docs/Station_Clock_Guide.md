@@ -107,7 +107,7 @@ part way through, the sound joins at the right point.
 - **Level:** Speech peaking at PPM 4 to 5 (about -18 to -14 dBFS on a PPM, so
   about -10 dBFS on a sample-peak meter). The pips are set at the equivalent of
   an -18 dBFS line-up tone.
-- **Format:** MP3, WAV, M4A, FLAC or OGG. Mono is fine.
+- **Format:** MP3, WAV, AIFF, M4A, AAC, FLAC, OGG or Opus. Mono is fine.
 
 ### Music
 
