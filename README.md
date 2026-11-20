@@ -43,7 +43,7 @@ needs, but 4K is beyond it.
 
 ## Quick start
     sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi \
-                        python3-uvicorn libdrm-tests
+                        python3-uvicorn python3-numpy python3-pil libdrm-tests
     git clone https://github.com/G8YTZ/lynx-deck.git ~/lynx-deck
     cd ~/lynx-deck && ./scripts/install.sh
 
@@ -86,7 +86,8 @@ to suppress it.
 ## Requirements
 Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop.
 
-    sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi python3-uvicorn
+    sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi python3-uvicorn \
+                        python3-numpy python3-pil
 
 Allow the reboot and update endpoints to work without a password:
 
