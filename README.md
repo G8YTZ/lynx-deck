@@ -80,13 +80,6 @@ the command lock is never held indefinitely, and a separate watchdog task:
 can see trouble instead of a cheerful "connected". Set `report_health: false`
 to suppress it.
 
-## Documentation
-- [`Lynx_Deck_Installation_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Installation_Guide.docx): Blank SD card to working deck
-- [`Lynx_Deck_Web_Interface_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Web_Interface_Guide.docx): Day-to-day operation
-- [Station Clock Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Station_Clock_Guide.md): The station clock, your own face and the top-of-the-hour sound
-- [Schedule Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Schedule_Guide.md): The schedule, the programme guide and moving over from Companion
-- [Monitoring Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Monitoring_Guide.md): SNMP for Home Assistant and the like
-
 ## Requirements
 Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop.
 
