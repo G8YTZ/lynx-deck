@@ -15,7 +15,7 @@ top of every hour.
 
 ## What you need
 
-- **Lynx Deck 1.5.0 or later.** Press *Check for updates* on the Deck's web
+- **Lynx Deck 1.6.0 or later.** Press *Check for updates* on the Deck's web
   page.
 - **The Pi's clock on NTP.** Raspberry Pi OS does this by default. On the Deck,
   `timedatectl` should say "System clock synchronized: yes".
@@ -24,15 +24,6 @@ top of every hour.
   ```
   sudo apt install -y python3-numpy python3-pil
   ```
-
-**Testing before the release:** The clock's sound is on the `junction` branch
-until it has been proven. To try it on a spare Deck:
-
-```
-cd ~/lynx-deck && git fetch origin junction && git checkout junction && sudo systemctl restart lynx-deck
-```
-
-To go back: `git checkout main` and restart the same way.
 
 ## Step 1: Make your clock face
 

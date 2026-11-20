@@ -37,9 +37,9 @@ is a 1080p deck: it decodes 1080p HEVC with four to six times the headroom it
 needs, but 4K is beyond it.
 
 ## Documentation
-- `docs/Lynx_Deck_Installation_Guide.docx` - blank SD card to working deck
-- `docs/Lynx_Deck_Web_Interface_Guide.docx` - day-to-day operation
-- `docs/Station_Clock_Guide.md` - the station clock and top-of-the-hour sound
+- [`Lynx_Deck_Installation_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Installation_Guide.docx): Blank SD card to working deck
+- [`Lynx_Deck_Web_Interface_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Web_Interface_Guide.docx): Day-to-day operation
+- [Station Clock Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Station_Clock_Guide.md): The station clock, your own face and the top-of-the-hour sound
 
 ## Quick start
     sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi \
@@ -79,9 +79,9 @@ can see trouble instead of a cheerful "connected". Set `report_health: false`
 to suppress it.
 
 ## Documentation
-- `docs/Lynx_Deck_Installation_Guide.docx` - blank SD card to working deck
-- `docs/Lynx_Deck_Web_Interface_Guide.docx` - day-to-day operation
-- `docs/Station_Clock_Guide.md` - the station clock and top-of-the-hour sound
+- [`Lynx_Deck_Installation_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Installation_Guide.docx): Blank SD card to working deck
+- [`Lynx_Deck_Web_Interface_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Web_Interface_Guide.docx): Day-to-day operation
+- [Station Clock Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Station_Clock_Guide.md): The station clock, your own face and the top-of-the-hour sound
 
 ## Requirements
 Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop.
