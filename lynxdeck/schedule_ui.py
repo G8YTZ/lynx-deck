@@ -59,9 +59,11 @@ PAGE = r"""<!doctype html>
         <span class="muted" id="f-timehint">hh:mm or hh:mm:ss, the time it reaches viewers</span></td></tr>
       <tr><th>Days</th><td class="days" id="f-days"></td></tr>
       <tr><th>Clip</th><td><select id="f-clip"></select></td></tr>
-      <tr><th>In the guide as</th><td><input id="f-title" size="40" maxlength="80"
-        placeholder="leave empty to keep it out of the guide"></td></tr>
-      <tr><th>Guide length</th><td><input id="f-minutes" type="number" min="1" max="1440" style="width:90px">
+      <tr><th>In the guide</th><td><label><input type="checkbox" id="f-guide" onchange="guideChanged()">
+        include this in the programme guide (EPG)</label></td></tr>
+      <tr class="g-row"><th>Guide title</th><td><input id="f-title" size="40" maxlength="80"
+        placeholder="empty: the clip's name"></td></tr>
+      <tr class="g-row"><th>Guide length</th><td><input id="f-minutes" type="number" min="1" max="1440" style="width:90px">
         minutes <span class="muted">(empty: an hour, or until the next programme)</span></td></tr>
       <tr><th>On</th><td><input type="checkbox" id="f-enabled" checked></td></tr>
     </table>
@@ -137,6 +139,11 @@ function repeatChanged() {
   document.getElementById('f-time').placeholder = hourly ? '58:56' : '19:00';
 }
 
+function guideChanged() {
+  const on = document.getElementById('f-guide').checked;
+  document.querySelectorAll('.g-row').forEach(r => r.style.display = on ? '' : 'none');
+}
+
 function drawDays(sel) {
   document.getElementById('f-days').innerHTML = DAYS.map((d, i) =>
     `<label><input type="checkbox" value="${i}" ${sel.includes(i) ? 'checked' : ''}> ${d}</label>`).join('') +
@@ -154,6 +161,7 @@ function clearForm() {
   ['f-id','f-time','f-title','f-minutes'].forEach(i => document.getElementById(i).value = '');
   document.getElementById('f-repeat').value = 'daily'; repeatChanged();
   document.getElementById('f-enabled').checked = true;
+  document.getElementById('f-guide').checked = false; guideChanged();
   drawDays([0,1,2,3,4,5,6]); drawClips('');
   document.getElementById('formmsg').textContent = '';
 }
@@ -167,6 +175,7 @@ function edit(id) {
   document.getElementById('f-title').value = e.title;
   document.getElementById('f-minutes').value = e.minutes || '';
   document.getElementById('f-enabled').checked = e.enabled;
+  document.getElementById('f-guide').checked = e.guide; guideChanged();
   drawDays(e.days); drawClips(e.clip);
   window.scrollTo(0, 0);
 }
@@ -180,6 +189,7 @@ async function saveEntry() {
       repeat: document.getElementById('f-repeat').value,
       time: document.getElementById('f-time').value.trim(),
       days, clip: document.getElementById('f-clip').value,
+      guide: document.getElementById('f-guide').checked,
       title: document.getElementById('f-title').value.trim(),
       minutes: Number(document.getElementById('f-minutes').value) || null,
       enabled: document.getElementById('f-enabled').checked,
@@ -212,7 +222,7 @@ async function load() {
       <td>${daysText(e.days)}</td>
       <td>${esc(e.clip) || '<span class="warn">no clip</span>'}
         ${e.clip && !clips.includes(e.clip) ? ' <span class="warn">(not in the library)</span>' : ''}</td>
-      <td>${e.title ? esc(e.title) + (e.minutes ? ` <span class="muted">(${e.minutes} min)</span>` : '') : '<span class="muted">-</span>'}</td>
+      <td>${e.guide ? esc(e.title) + (e.minutes ? ` <span class="muted">(${e.minutes} min)</span>` : '') : '<span class="muted">not in the guide</span>'}</td>
       <td style="white-space:nowrap">
         <span class="link" onclick="edit('${e.id}')">change</span> &nbsp;
         <span class="link" onclick="toggle('${e.id}')">${e.enabled ? 'switch off' : 'switch on'}</span> &nbsp;
@@ -223,7 +233,7 @@ async function load() {
     const t = new Date(p.start);
     return `<tr><td class="mono">${t.toLocaleDateString('en-GB', {weekday:'short'})} ${t.toTimeString().slice(0,5)}</td>
       <td>${esc(p.title)}</td><td class="muted">${p.minutes} min</td></tr>`;
-  }).join('') || '<tr><td class="muted">Nothing in the guide (give entries a guide title).</td></tr>';
+  }).join('') || '<tr><td class="muted">Nothing in the guide (tick <i>In the guide</i> on an entry).</td></tr>';
 }
 
 async function importFrom() {

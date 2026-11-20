@@ -257,9 +257,11 @@ after the cut, the clip does what its behaviour says, as before.
 
 - **Times are on-air times:** the Deck cuts early by the clock's *ahead by*
   setting, so a 19:00 programme reaches viewers at 19:00.
-- **The guide:** give an entry a guide title (and a length if not an hour) and
-  it is a programme, as Companion's `EPG:` triggers were. Entries without one
-  (the clock, idents) are scheduled but stay out of the guide.
+- **The guide:** tick *In the guide* on an entry and it is a programme, with its
+  guide title (the clip's name if left empty) and length (an hour if left
+  empty), as Companion's `EPG:` triggers were. Unticked entries (the clock,
+  idents) are scheduled but stay out of the guide. Lynx-Tx reads the guide
+  from the Deck.
   `/schedule/guide` lists the programmes for the next eight days.
 - **After a restart** the Deck rejoins what the schedule says should be on air,
   part way through; if that clip would have finished, it stays on the default

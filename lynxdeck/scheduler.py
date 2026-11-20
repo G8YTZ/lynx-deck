@@ -2,9 +2,10 @@
 
 The Deck's own version of the Companion time-of-day triggers it replaces.
 An entry is a time, the days it runs and a clip; what happens after the cut
-is the clip's own behaviour (hold, loop, once, auto), as before. Entries with
-a guide title are programmes in the EPG, as Companion's "EPG:" triggers were;
-the rest (the clock, idents) are scheduled but kept out of the guide.
+is the clip's own behaviour (hold, loop, once, auto), as before. Entries
+ticked "in the guide" are programmes in the EPG (their title, and a length if
+not an hour), as Companion's "EPG:" triggers were; the rest (the clock,
+idents) are scheduled but kept out of the guide.
 
 Times are on-air times: the Deck cuts early by the clock's "ahead by"
 setting, so a 19:00 programme reaches viewers at 19:00.
@@ -69,6 +70,12 @@ def clean(entry):
     if not days:
         raise ScheduleError("pick at least one day")
     title = str(e.get("title") or "").strip()
+    clip = str(e.get("clip") or "").strip()
+    guide = bool(e.get("guide", bool(title)))     # older entries: a title meant "in the guide"
+    if guide and not title:
+        title = re.sub(r"[_]+", " ", Path(clip).stem).strip() if clip else ""
+        if not title:
+            raise ScheduleError("an entry in the guide needs a title (or a clip to take one from)")
     minutes = e.get("minutes")
     minutes = int(minutes) if minutes not in (None, "", 0, "0") else None
     if minutes is not None and not 1 <= minutes <= 24 * 60:
@@ -78,7 +85,8 @@ def clean(entry):
         "repeat": "hourly" if hourly else "daily",
         "time": e["time"],
         "days": days,
-        "clip": str(e.get("clip") or "").strip(),
+        "clip": clip,
+        "guide": guide,
         "title": title,
         "minutes": minutes,
         "enabled": bool(e.get("enabled", True)),
@@ -260,7 +268,7 @@ class Scheduler:
         if clip is None:
             return
         elapsed = (now - at).total_seconds()
-        if e["title"] and elapsed > 60 * (e["minutes"] or DEFAULT_MINUTES):
+        if e["guide"] and elapsed > 60 * (e["minutes"] or DEFAULT_MINUTES):
             log.info("Schedule: %s has finished; staying on the default slide", e["title"])
             return
         if clip.kind == "still":
@@ -284,7 +292,7 @@ class Scheduler:
         Lynx-Tx can read the Deck instead. An hourly entry is 24 slots."""
         out = []
         for e in self.entries:
-            if not (e["enabled"] and e["title"]):
+            if not (e["enabled"] and e["guide"]):
                 continue
             hourly = e["repeat"] == "hourly"
             secs = parse_time(e["time"], hourly)
@@ -306,7 +314,7 @@ class Scheduler:
         end = now + dt.timedelta(days=days)
         slots = []
         for e in self.entries:
-            if e["enabled"] and e["title"]:
+            if e["enabled"] and e["guide"]:
                 slots += [(t, e) for t in occurrences(e, start, end)]
         slots.sort(key=lambda s: s[0])
         out = []
@@ -456,7 +464,8 @@ def from_companion(triggers, clips):
         on = bool(clip) and clip in names
         if clip and clip not in names:
             notes.append(f"{title or clip}: {clip} is not on this Deck; added switched off")
-        base = {"clip": clip, "title": title, "minutes": minutes, "days": list(days), "enabled": on}
+        base = {"clip": clip, "title": title, "guide": bool(title), "minutes": minutes,
+                "days": list(days), "enabled": on}
         if len(hours) == 24:
             entries.append(clean({**base, "repeat": "hourly",
                                   "time": f"{mmss // 60:02d}:{mmss % 60:02d}"}))
