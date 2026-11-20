@@ -306,11 +306,18 @@ class Scheduler:
 # ----- importing Companion's EPG triggers --------------------------------
 
 def load_export(data):
-    """Triggers from a Companion export file (.companionconfig, maybe gzipped)."""
+    """Triggers from a Companion export: YAML (Companion 5's own format) or
+    JSON, possibly gzipped."""
     import gzip
+    import yaml
     if data[:2] == b"\x1f\x8b":
         data = gzip.decompress(data)
-    triggers = json.loads(data).get("triggers")
+    text = data.decode("utf-8", errors="replace")
+    try:
+        doc = json.loads(text)
+    except ValueError:
+        doc = yaml.safe_load(text)
+    triggers = (doc or {}).get("triggers") if isinstance(doc, dict) else None
     if not isinstance(triggers, dict):
         raise ValueError("no triggers in that file")
     return triggers
@@ -337,65 +344,107 @@ MARK = re.compile(r"^\s*EPG(?::|\s)\s*(.+?)\s*$", re.I)
 LENGTH = re.compile(r"\s*\(\s*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m(?:in)?)?\s*\)\s*$", re.I)
 
 
-def from_companion(triggers, clips):
-    """Schedule entries from Companion's "EPG:" triggers (the rule Lynx-Tx's
-    epg.py uses). The clip is guessed from the trigger's actions: any option
-    naming a clip in the library by file or display name, or a HyperDeck
-    clip number. Returns (entries, notes)."""
-    by_name = {}
-    for c in clips:
-        by_name[c.path.name.lower()] = c.path.name
-        by_name[c.name.lower()] = c.path.name
-        by_name[c.path.stem.lower()] = c.path.name
+def _value(v):
+    """Companion 5 wraps options as {"value": ..., "isExpression": ...}."""
+    return v.get("value") if isinstance(v, dict) and "value" in v else v
+
+
+def _event_seconds(t):
+    """Companion's time of day: "19:00:15", or seconds since midnight."""
+    if isinstance(t, (int, float)):
+        return int(t) % 86400
+    parts = [int(x) for x in str(t).strip().split(":")]
+    while len(parts) < 3:
+        parts.append(0)
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+
+
+def _actions(lst):
+    for a in lst or []:
+        yield a
+        for children in (a.get("children") or {}).values():
+            yield from _actions(children)
+
+
+def _clip_from_actions(trigger, clips):
+    """The clip a trigger cuts to: a HyperDeck "go to clip by name" (the
+    name), or "go to clip" by number (looked up in this Deck's list)."""
     by_id = {c.id: c.path.name for c in clips}
-    entries, notes = [], []
-    for tid, t in (triggers or {}).items():
-        opts = t.get("options") or {}
-        m = MARK.match(opts.get("name", ""))
-        if not m or not opts.get("enabled", True):
+    for a in _actions(trigger.get("actions")):
+        did = str(a.get("definitionId") or "")
+        clip = _value((a.get("options") or {}).get("clip"))
+        if clip in (None, ""):
             continue
-        title, minutes = m.group(1), None
-        lm = LENGTH.search(title)
-        if lm and (lm.group(1) or lm.group(2)):
-            minutes = int(lm.group(1) or 0) * 60 + int(lm.group(2) or 0)
-            title = title[:lm.start()].rstrip()
-        clip = _clip_from_actions(t, by_name, by_id)
-        if not clip:
-            notes.append(f"{title}: no clip found in its actions; choose one")
-        for ev in t.get("events") or []:
-            if ev.get("type") != "timeofday" or not ev.get("enabled", True):
-                continue
-            o = ev.get("options") or {}
-            js_days = [int(d) for d in (o.get("days") or []) if 0 <= int(d) <= 6]
-            days = sorted({(d + 6) % 7 for d in js_days})   # Companion: 0 = Sunday
+        if did == "gotoName" or (isinstance(clip, str) and not clip.strip().isdigit()):
+            return str(clip).strip()
+        if did.startswith("goto"):
             try:
-                entries.append(clean({"repeat": "daily", "time": str(o.get("time", "")),
-                                      "days": days, "clip": clip or "", "title": title,
-                                      "minutes": minutes, "enabled": bool(clip)}))
-            except ScheduleError as exc:
-                notes.append(f"{title}: {exc}")
-    return entries, notes
-
-
-def _clip_from_actions(trigger, by_name, by_id):
-    def walk(obj):
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                yield k, v
-                yield from walk(v)
-        elif isinstance(obj, list):
-            for v in obj:
-                yield from walk(v)
-    numbers = []
-    for k, v in walk(trigger.get("actions") or trigger.get("action_sets") or {}):
-        if isinstance(v, str) and v.strip().lower() in by_name:
-            return by_name[v.strip().lower()]
-        if "clip" in str(k).lower():
-            try:
-                numbers.append(int(v))
+                return by_id.get(int(clip))
             except (TypeError, ValueError):
                 pass
-    for n in numbers:
-        if n in by_id:
-            return by_id[n]
     return None
+
+
+def from_companion(triggers, clips):
+    """Schedule entries from Companion's enabled time-of-day triggers that cut
+    the Deck to a clip. "EPG:" ones become programmes in the guide (title and
+    length from the name, as Lynx-Tx's epg.py reads them); the rest (the
+    clock) are scheduled but kept out of the guide. The same clip at the same
+    minutes and seconds past every hour of the day becomes one hourly entry.
+    Returns (entries, notes)."""
+    names = {c.path.name for c in clips} | {c.name for c in clips}
+    found, notes = [], []
+    for tid, t in (triggers or {}).items():
+        opts = t.get("options") or {}
+        if not opts.get("enabled", True):
+            continue
+        events = [e for e in (t.get("events") or [])
+                  if e.get("type") == "timeofday" and e.get("enabled", True)]
+        if not events:
+            continue
+        clip = _clip_from_actions(t, clips)
+        name = str(opts.get("name") or "")
+        m = MARK.match(name)
+        title, minutes = (m.group(1), None) if m else ("", None)
+        if m:
+            lm = LENGTH.search(title)
+            if lm and (lm.group(1) or lm.group(2)):
+                minutes = int(lm.group(1) or 0) * 60 + int(lm.group(2) or 0)
+                title = title[:lm.start()].rstrip()
+        if not clip:
+            if m:
+                notes.append(f"{title}: its actions name no clip; choose one")
+            else:
+                continue                      # not a playout trigger
+        for ev in events:
+            o = ev.get("options") or {}
+            try:
+                secs = _event_seconds(o.get("time", ""))
+            except ValueError:
+                notes.append(f"{name}: time {o.get('time')!r} not understood")
+                continue
+            days = sorted({(int(d) + 6) % 7 for d in (o.get("days") or []) if 0 <= int(d) <= 6})
+            if days:
+                found.append({"secs": secs, "days": days, "clip": clip or "",
+                              "title": title, "minutes": minutes})
+    # collapse "the same thing at mm:ss past every hour" into one hourly entry
+    groups = {}
+    for f in found:
+        key = (f["clip"], f["title"], f["minutes"], tuple(f["days"]), f["secs"] % 3600)
+        groups.setdefault(key, set()).add(f["secs"] // 3600)
+    entries = []
+    for (clip, title, minutes, days, mmss), hours in groups.items():
+        on = bool(clip) and clip in names
+        if clip and clip not in names:
+            notes.append(f"{title or clip}: {clip} is not on this Deck; added switched off")
+        base = {"clip": clip, "title": title, "minutes": minutes, "days": list(days), "enabled": on}
+        if len(hours) == 24:
+            entries.append(clean({**base, "repeat": "hourly",
+                                  "time": f"{mmss // 60:02d}:{mmss % 60:02d}"}))
+        else:
+            for h in sorted(hours):
+                secs = h * 3600 + mmss
+                entries.append(clean({**base, "repeat": "daily",
+                                      "time": f"{secs // 3600:02d}:{secs // 60 % 60:02d}:{secs % 60:02d}"}))
+    entries.sort(key=Scheduler._sort_key)
+    return entries, sorted(set(notes))

@@ -89,9 +89,11 @@ PAGE = r"""<!doctype html>
 
   <div class="panel">
     <strong>Import from Companion</strong>
-    <div class="muted">Brings in Companion's <span class="mono">EPG:</span> triggers
-      (title, length, times and days), and the clip where its actions name one.
-      Check each one afterwards; an entry without a clip is added switched off.</div>
+    <div class="muted">Brings in Companion's switched-on time-of-day triggers that cut the
+      Deck to a clip: <span class="mono">EPG:</span> ones as programmes in the guide, the rest
+      (the clock) outside it; the same clip every hour becomes one hourly entry. Its times
+      become on-air times, so the Deck will cut them <i>ahead by</i> earlier. Entries already
+      here are skipped; any whose clip is not on this Deck are added switched off.</div>
     <div class="row" style="margin-top:10px">
       <input id="c-addr" placeholder="Companion address, e.g. 192.168.40.103:8000" size="38">
       <button onclick="importFrom()">Import</button>
