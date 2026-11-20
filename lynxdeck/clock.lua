@@ -139,7 +139,12 @@ local own_dir = nil                                -- this Deck's own (Lynx Deck
 local bed_track, junction_track, fired_for, warned_for, check_at = nil, nil, nil, nil, nil
 
 local function add_bed()
-    mp.commandv("audio-add", "av://lavfi:anullsrc=r=48000:cl=stereo", "select", "silence")
+    -- 32-bit float: lavfi's silence is 8-bit by default, and mpv opens the
+    -- sound output in the format of the first track, so the hour's sound
+    -- then played through an 8-bit output (audible quantising noise,
+    -- Justin, 20 Nov 2026).
+    mp.commandv("audio-add", "av://lavfi:anullsrc=r=48000:cl=stereo,aformat=sample_fmts=flt",
+                "select", "silence")
     bed_track = mp.get_property_number("aid")
 end
 
