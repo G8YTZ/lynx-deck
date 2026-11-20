@@ -40,6 +40,7 @@ needs, but 4K is beyond it.
 - [`Lynx_Deck_Installation_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Installation_Guide.docx): Blank SD card to working deck
 - [`Lynx_Deck_Web_Interface_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Web_Interface_Guide.docx): Day-to-day operation
 - [Station Clock Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Station_Clock_Guide.md): The station clock, your own face and the top-of-the-hour sound
+- [Schedule Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Schedule_Guide.md): The schedule, the programme guide and moving over from Companion
 
 ## Quick start
     sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi \
@@ -82,6 +83,7 @@ to suppress it.
 - [`Lynx_Deck_Installation_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Installation_Guide.docx): Blank SD card to working deck
 - [`Lynx_Deck_Web_Interface_Guide.docx`](https://github.com/G8YTZ/lynx-deck/raw/main/docs/Lynx_Deck_Web_Interface_Guide.docx): Day-to-day operation
 - [Station Clock Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Station_Clock_Guide.md): The station clock, your own face and the top-of-the-hour sound
+- [Schedule Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Schedule_Guide.md): The schedule, the programme guide and moving over from Companion
 
 ## Requirements
 Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop.
@@ -271,7 +273,7 @@ after the cut, the clip does what its behaviour says, as before.
   its address, or an export file) and adds them, with the clip where the
   trigger's actions name one. Check them afterwards.
 
-Kept in `schedule.json` beside the state file.
+Kept in `schedule.json` beside the state file. Full instructions: [Schedule Guide](https://github.com/G8YTZ/lynx-deck/blob/main/docs/Schedule_Guide.md).
 
 ## The station clock
 Any still whose name ends in `clock` (`05_GB3OO_Clock.png`, say) is a clock
