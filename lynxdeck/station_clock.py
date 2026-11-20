@@ -5,7 +5,7 @@ Everything a repeater makes its own lives in clock_dir (default
 
   sounds/hour_1.mp3 .. hour_12.mp3   announcements, as uploaded
   sounds/music.<ext>                  music for 59:30 (optional)
-  junction/junction_01.m4a ..         built from the above by make_junction.py
+  junction/junction_01.flac ..        built from the above by make_junction.py (lossless)
 
 The face is drawn by make_clock.py with the station's call sign, town and web
 address and saved into the media folder as an ordinary still, so it is called
@@ -58,7 +58,7 @@ def _slot_files(cfg, slot):
 def status(cfg):
     hours = [h for h in range(1, 13) if _slot_files(cfg, h)]
     music = _slot_files(cfg, "music")
-    built = sorted(junction_dir(cfg).glob("junction_*.m4a")) if junction_dir(cfg).is_dir() else []
+    built = sorted(junction_dir(cfg).glob("junction_*.flac")) if junction_dir(cfg).is_dir() else []
     return {
         "hours": hours,
         "music": music[0].name if music else None,
