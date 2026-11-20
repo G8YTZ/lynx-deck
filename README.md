@@ -39,6 +39,7 @@ needs, but 4K is beyond it.
 ## Documentation
 - `docs/Lynx_Deck_Installation_Guide.docx` - blank SD card to working deck
 - `docs/Lynx_Deck_Web_Interface_Guide.docx` - day-to-day operation
+- `docs/Station_Clock_Guide.md` - the station clock and top-of-the-hour sound
 
 ## Quick start
     sudo apt install -y git mpv ffmpeg python3-yaml python3-fastapi \
@@ -80,6 +81,7 @@ to suppress it.
 ## Documentation
 - `docs/Lynx_Deck_Installation_Guide.docx` - blank SD card to working deck
 - `docs/Lynx_Deck_Web_Interface_Guide.docx` - day-to-day operation
+- `docs/Station_Clock_Guide.md` - the station clock and top-of-the-hour sound
 
 ## Requirements
 Raspberry Pi 4, Raspberry Pi OS Lite (64-bit), no desktop.
