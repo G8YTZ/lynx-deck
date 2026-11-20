@@ -33,10 +33,12 @@ On the Deck's web page, find the **Station clock** panel.
 2. **Town:** For example FOLKESTONE.
 3. **Web address:** For example gb3oo.co.uk. It is shown in the face's small
    capitals.
-4. **Clip number:** Pick a number after your existing clips (20, say).
-   Clips are numbered in file-name order, so a number in the middle would
-   renumber the clips after it, and your ATEM and Companion buttons would point
-   at the wrong ones.
+4. **Clip number:** The number the face's file name starts with (20 gives
+   `20_GB3OO_Clock.png`). It only decides where the face sits in the list,
+   which is in file-name order. If you call clips up by name, as Companion can,
+   any number will do. If anything calls them by number, such as the ATEM's own
+   HyperDeck control, pick one that sorts after your existing clips, so their
+   numbers don't move.
 5. Press **Make clock face**.
 
 The face appears in the clip list as, for example, `20_GB3OO_Clock.png`. Change

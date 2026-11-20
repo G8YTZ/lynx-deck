@@ -150,7 +150,7 @@ PAGE = r"""<!doctype html>
       <tr><th>Town</th><td><input id="ck-town" maxlength="40" placeholder="FOLKESTONE"></td></tr>
       <tr><th>Web address</th><td><input id="ck-web" maxlength="40" placeholder="gb3oo.co.uk"></td></tr>
       <tr><th>Clip number</th><td><input type="number" id="ck-clip" min="1" max="99" step="1">
-        <span class="muted">(after your other clips, so their numbers stay put)</span></td></tr>
+        <span class="muted">(starts the file name; the list is in file-name order)</span></td></tr>
     </table>
     <div class="row" style="margin-top:12px">
       <button onclick="makeFace()">Make clock face</button>
