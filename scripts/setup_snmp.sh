@@ -5,7 +5,7 @@
 # Read-only, community "lynx". Safe to run again; install.sh runs it.
 set -e
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y snmpd >/dev/null
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y snmpd snmp >/dev/null
 sudo install -D -m 755 "$APP_DIR/tools/lynx-deck-snmp-agent.py" /usr/local/lib/lynx-deck/lynx-deck-snmp-agent.py
 sudo install -D -m 644 "$APP_DIR/mibs/LYNX-MIB.txt" /usr/share/snmp/mibs/LYNX-MIB.txt
 # Debian's snmpd answers only the Pi itself: open it to the network.

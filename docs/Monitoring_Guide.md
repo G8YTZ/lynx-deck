@@ -20,11 +20,10 @@ version 1.8.0, once, after updating:
 cd ~/lynx-deck && ./scripts/setup_snmp.sh
 ```
 
-It installs `snmpd`, the agent (`tools/lynx-deck-snmp-agent.py`) and the MIB,
+It installs `snmpd`, the `snmp` tools for checking it, the agent (`tools/lynx-deck-snmp-agent.py`) and the MIB,
 and opens SNMP to the network. Check it on the Deck:
 
 ```
-sudo apt install -y snmp
 snmpwalk -v2c -c lynx -On localhost .1.3.6.1.4.1.8072.9999.1.3
 ```
 
