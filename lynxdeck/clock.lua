@@ -302,7 +302,7 @@ end)
 mp.register_event("playback-restart", function()
     if is_face(mp.get_property("filename")) then
         if fading == "black" then fading = mp.get_time() end
-    elseif showing then
+    elseif showing or fading == "black" then   -- including a face that never came
         showing, fading = false, nil
         timer:kill()
         overlay:remove()
@@ -315,6 +315,16 @@ mp.observe_property("idle-active", "bool", function(_, idle)
         timer:kill()
         overlay:remove()
     end
+end)
+
+-- Black before the face is even loaded. Otherwise its first frame can reach
+-- the screen before this script paints over it, and the clock flashes up at
+-- full brightness and then fades in from black (Justin, 25 Nov 2026).
+mp.register_script_message("lynxclock-black", function()
+    fade_out = nil
+    fading = "black"
+    timer:resume()
+    draw()
 end)
 
 mp.register_script_message("lynxclock-fadeout", function(secs)

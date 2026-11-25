@@ -232,6 +232,10 @@ class Mpv:
         if self.proc is None or self.proc.returncode is not None:
             await self.start()
         self.file_loaded.clear()
+        if Path(path).stem.lower().endswith("clock"):
+            # Black first: the face's first frame can otherwise appear before
+            # clock.lua covers it, which looks like a flash then a fade in.
+            await self.command("script-message", "lynxclock-black")
         await self.set("pause", True)
         await self.set("loop-file", "inf" if repeat else "no")
         await self.command("loadfile", str(path), "replace")
