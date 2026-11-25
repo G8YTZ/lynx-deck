@@ -201,6 +201,13 @@ class Scheduler:
                 log.warning("Schedule: the clock jumped (%s to %s); not catching up",
                             self._last.strftime("%H:%M:%S"), now.strftime("%H:%M:%S"))
                 self._last = now
+                # The station clock counts on from the monotonic clock, so a
+                # step leaves it wrong until it notices: tell it now.
+                try:
+                    await self.engine.player.command("script-message",
+                                                     "lynxclock-recalibrate")
+                except Exception as exc:
+                    log.warning("Schedule: could not tell the clock: %s", exc)
                 continue
             due, soon = [], []
             ahead = now + dt.timedelta(seconds=CLOCK_FADE)

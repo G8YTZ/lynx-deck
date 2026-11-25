@@ -39,6 +39,7 @@ overlay.res_x, overlay.res_y = 1920, 1080
 -- from there. Done at start and every minute; a clock step is caught at once.
 local base_wall, base_mono = nil, nil
 local calibrating = nil
+local off_since = nil
 
 local function calibrate()
     if calibrating then return end
@@ -71,7 +72,20 @@ local function wall()
     end
     if not base_wall then return nil end
     local t = base_wall + (mp.get_time() - base_mono) + offset
-    if math.abs(math.floor(t - offset) - os.time()) > 1 then calibrate() end
+    -- floor(t) and os.time() can differ by one across a second boundary, so a
+    -- single disagreement means nothing; a real step holds. Recalibrate once it
+    -- has held for half a second (Justin, 25 Nov 2026: a one second step on
+    -- GB3OO was missed by the old > 1 test, and the clock and the pips ran a
+    -- second fast until the next minute's resync).
+    if math.abs(math.floor(t - offset) - os.time()) >= 1 then
+        off_since = off_since or mp.get_time()
+        if mp.get_time() - off_since > 0.5 then
+            off_since = nil
+            calibrate()
+        end
+    else
+        off_since = nil
+    end
     local whole = math.floor(t)
     local d = os.date("*t", whole)
     return t, d.hour, d.min, d.sec + (t - whole)
@@ -285,6 +299,14 @@ end)
 
 mp.register_script_message("lynxclock-fadeout", function(secs)
     if showing then fade_out = { mp.get_time(), math.max(0.1, tonumber(secs) or 1) } end
+end)
+
+-- Lynx Deck's scheduler saw the system clock step: take its word for it
+-- rather than waiting to notice.
+mp.register_script_message("lynxclock-recalibrate", function()
+    off_since = nil
+    calibrate()
+    mp.msg.info("clock step reported: recalibrating")
 end)
 
 mp.register_script_message("lynxclock", function(off, tk, dir)
