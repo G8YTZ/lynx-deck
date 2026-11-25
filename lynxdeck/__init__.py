@@ -1,2 +1,2 @@
 """Lynx Deck - networked playback server for Raspberry Pi."""
-__version__ = "1.8.0"
+__version__ = "1.9.0"
