@@ -77,14 +77,18 @@ def main():
 
     period = 60.0 if a.minute else 3600.0
     print(f"watching {mpv.get('filename')}")
-    print("  system clock      audio position     where it should be      out by")
+    print("  system clock      audio position   file position   aid   "
+          "where it should be      out by")
     end = time.time() + a.seconds
     seen, last = [], None
     while time.time() < end:
         pts = mpv.get("audio-pts")
         now = dt.datetime.now()
+        tpos, aid = mpv.get("time-pos"), mpv.get("aid")
         if isinstance(pts, (int, float)):
             line = f"  {now:%H:%M:%S.%f}"[:-3] + f"   {pts:8.3f}"
+            line += f"      {tpos:8.3f}" if isinstance(tpos, (int, float)) else "          -   "
+            line += f"   {aid}"
             if a.offset is not None:
                 # the script's own sum: pos = (clock time + AHEAD) within the period
                 secs = (now.hour * 3600 + now.minute * 60 + now.second
