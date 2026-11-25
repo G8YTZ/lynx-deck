@@ -75,15 +75,23 @@ def main():
     except OSError as exc:
         sys.exit(f"cannot reach mpv on {a.socket}: {exc}")
 
+    period = 60.0 if a.minute else 3600.0
     print(f"watching {mpv.get('filename')}")
-    print("  system clock      audio position")
+    print("  system clock      audio position     where it should be      out by")
     end = time.time() + a.seconds
     seen, last = [], None
     while time.time() < end:
         pts = mpv.get("audio-pts")
         now = dt.datetime.now()
         if isinstance(pts, (int, float)):
-            print(f"  {now:%H:%M:%S.%f}"[:-3] + f"   {pts:8.3f}")
+            line = f"  {now:%H:%M:%S.%f}"[:-3] + f"   {pts:8.3f}"
+            if a.offset is not None:
+                # the script's own sum: pos = (clock time + AHEAD) within the period
+                secs = (now.hour * 3600 + now.minute * 60 + now.second
+                        + now.microsecond / 1e6 + a.offset)
+                want = (secs + LONG_PIP_AT) % period
+                line += f"        {want:8.3f}        {pts - want:+7.3f}"
+            print(line)
             seen.append((now, pts))
             if last is not None and last < LONG_PIP_AT <= pts:
                 # when did the file pass 30.000? interpolate between samples
