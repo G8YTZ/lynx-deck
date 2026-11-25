@@ -157,7 +157,7 @@ end
 -- "file" when it finished (the Deck would see the clip end and stop). So the
 -- face gets an endless silent track as it loads, the hour's sound is switched
 -- in at 59:30 and the silence switched back before the sound runs out.
-local AHEAD, LENGTH = 30, 35    -- the sound starts 30 s before the hour
+local AHEAD, LENGTH = 30, 38    -- the sound starts 30 s before the hour
 -- Normally the junction goes out on the hour. Test mode (lynxclock-test)
 -- puts the junction on every minute instead, otherwise unchanged, so a
 -- timing fault can be chased a minute at a time instead of an hour.

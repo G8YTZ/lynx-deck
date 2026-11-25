@@ -28,7 +28,8 @@ from pathlib import Path
 import numpy as np
 
 RATE = 48000
-LENGTH = 35.0                 # seconds from 59:30
+LENGTH = 38.0                 # seconds from 59:30 (room for a long
+                              # announcement, and for the sound delay)
 MUSIC_AT, MUSIC_MAX = 0.0, 20.0
 PIPS_AT = [25.0, 26.0, 27.0, 28.0, 29.0]   # :55 to :59
 LONG_AT = 30.0                # 00:00:00
