@@ -31,6 +31,12 @@ local EDGE = "&H05080A&"   -- 10,8,5
 local CX, CY = 960, 507.5  -- the dial's centre on the face
 local P = 4                -- drawing in quarter pixels (\p3)
 
+-- What the script is doing, for Lynx Deck and for tools/clock-check.py:
+-- mpv's user-data is readable over the same socket, so no log is needed.
+local function note(key, value)
+    pcall(mp.set_property, "user-data/lynxclock/" .. key, tostring(value))
+end
+
 local overlay = mp.create_osd_overlay("ass-events")
 overlay.res_x, overlay.res_y = 1920, 1080
 
@@ -148,8 +154,8 @@ end
 -- in at 59:30 and the silence switched back before the sound runs out.
 local AHEAD, LENGTH = 30, 35    -- the sound starts 30 s before the hour
 -- Normally the junction goes out on the hour. Test mode (lynxclock-test)
--- puts the pips on every minute instead, with the generic pips-only file,
--- so a timing fault can be chased a minute at a time. Nothing else changes.
+-- puts the junction on every minute instead, otherwise unchanged, so a
+-- timing fault can be chased a minute at a time instead of an hour.
 local PERIOD = 3600
 local testing = false
 local here = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("[^/]*$", "")
@@ -198,7 +204,7 @@ local function junction(h, m, s)
     -- this Deck's own first, then the generic ones; lossless .flac, or the
     -- .m4a that 1.6 and 1.7 built until the sounds are rebuilt
     local file = nil
-    for _, dir in ipairs(testing and { generic_dir } or { own_dir or "", generic_dir }) do
+    for _, dir in ipairs({ own_dir or "", generic_dir }) do
         for _, ext in ipairs({ "flac", "m4a" }) do
             local path = string.format("%sjunction_%02d.%s", dir, hour, ext)
             local f = dir ~= "" and io.open(path, "rb")
@@ -216,6 +222,8 @@ local function junction(h, m, s)
     end
     mp.commandv("seek", string.format("%.3f", pos), "absolute+exact")
     check_at = mp.get_time() + 1
+    note("file", file)
+    note("fired-at", string.format("%.3f", pos))
     mp.msg.info(string.format("top of the hour: %s from %.2f s", file, pos))
 end
 
@@ -317,8 +325,9 @@ mp.register_script_message("lynxclock-test", function(on)
         mp.commandv("audio-remove", tostring(junction_track))
         junction_track = nil
     end
-    mp.msg.info(testing and "clock test: pips every minute"
-                        or "clock test off: pips on the hour")
+    note("period", PERIOD)
+    mp.msg.info(testing and "clock test: the junction every minute"
+                        or "clock test off: the junction on the hour")
 end)
 
 -- Lynx Deck's scheduler saw the system clock step: take its word for it
@@ -333,7 +342,12 @@ mp.register_script_message("lynxclock", function(off, tk, dir)
     offset = tonumber(off) or 0
     tick = tk == "yes"
     if dir and dir ~= "" then own_dir = dir end
+    note("own-dir", own_dir or "(none: the generic pips)")
+    note("offset", offset)
     mp.msg.info(string.format("clock offset %.2f s, %s", offset, tick and "ticking" or "sweeping"))
 end)
 
 calibrate()
+
+note("own-dir", "(none yet)")
+note("ready", "yes")      -- Lynx Deck waits for this before sending settings

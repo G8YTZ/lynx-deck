@@ -77,6 +77,10 @@ def main():
 
     period = 60.0 if a.minute else 3600.0
     print(f"watching {mpv.get('filename')}")
+    for key in ("own-dir", "offset", "period", "file", "fired-at"):
+        val = mpv.get("user-data/lynxclock/" + key)
+        if val is not None:
+            print(f"  {key:9} {val}")
     print("  system clock      audio position   file position   aid   "
           "where it should be      out by")
     end = time.time() + a.seconds

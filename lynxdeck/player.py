@@ -101,6 +101,7 @@ class Mpv:
             raise PlayerError("mpv IPC socket never appeared")
         self._read_task = asyncio.create_task(self._read_loop(reader))
         await self.command("observe_property", 1, "eof-reached")
+        await self._wait_for_clock_script()
         await self.clock_settings()
         self.paused, self.current, self.is_still, self.eof = True, None, False, False
         log.info("Player ready (mpv -> %s)", self.cfg.audio_device)
@@ -188,6 +189,23 @@ class Mpv:
 
     async def set(self, prop, value):
         return await self.command("set_property", prop, value)
+
+    async def _wait_for_clock_script(self, timeout=3.0):
+        """mpv opens its socket before it loads its scripts, so settings sent
+        the moment we connect can land before clock.lua is listening and be
+        lost: the clock then has no idea where this Deck's own sounds are and
+        falls back to the generic pips (no music, no announcement; GB3OO,
+        25 Nov 2026). The script says when it is up."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                if await self.get("user-data/lynxclock/ready", None):
+                    return True
+            except PlayerError:
+                pass
+            await asyncio.sleep(0.05)
+        log.warning("The clock script did not report in: its settings may not stick")
+        return False
 
     async def clock_settings(self):
         """Tell clock.lua the offset and second-hand style; harmless if it is absent."""
