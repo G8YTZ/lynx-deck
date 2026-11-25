@@ -39,6 +39,8 @@ class Config:
     # HDMI0 on the Pi 4. The 3.5mm jack is the ALSA default, so this must be set.
     audio_device: str = "alsa/sysdefault:CARD=vc4hdmi0"
     volume: int = 100
+    audio_delay: float = 0.0             # seconds to hold the sound back (the Pi's
+                                         # picture path runs behind its audio)
     # watchdog
     load_timeout: float = 5.0       # max wait for a clip to finish loading
     player_timeout: float = 5.0        # max wait for any player reply

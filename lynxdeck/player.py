@@ -70,6 +70,7 @@ class Mpv:
             "--image-display-duration=inf",     # stills hold until told otherwise
             f"--audio-device={self.cfg.audio_device}",
             f"--volume={self.cfg.volume}",
+            f"--audio-delay={self.cfg.audio_delay}",   # the Pi's picture runs behind
             "--audio-fallback-to-null=yes",     # silence must never stop the picture
             "--pause=yes",
             f"--script={CLOCK_SCRIPT}",          # hands over any ...clock still
@@ -206,6 +207,13 @@ class Mpv:
             await asyncio.sleep(0.05)
         log.warning("The clock script did not report in: its settings may not stick")
         return False
+
+    async def audio_delay(self):
+        """Hold the sound back to meet the picture. The Pi's video path (DRM
+        overlay plane) runs about a second behind its audio, which puts every
+        clip out of lip-sync and the pips ahead of the clock's hands (both
+        Decks, 25 Nov 2026). One figure fixes both."""
+        await self.set("audio-delay", self.cfg.audio_delay)
 
     async def clock_settings(self):
         """Tell clock.lua the offset and second-hand style; harmless if it is absent."""

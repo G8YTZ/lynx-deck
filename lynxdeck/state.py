@@ -16,6 +16,7 @@ EDITABLE = {
     "defaultBehaviour": ("default_behaviour", str),
     "stillDuration": ("still_duration", float),
     "volume": ("volume", int),
+    "audioDelay": ("audio_delay", float),
     "clockOffset": ("clock_offset", float),
     "clockSecond": ("clock_second", str),
     "clockCall": ("clock_call", str),
@@ -71,6 +72,8 @@ class State:
                 raise ValueError("stillDuration must be between 1 and 3600 seconds")
             if key == "volume" and not 0 <= typed <= 130:
                 raise ValueError("volume must be between 0 and 130")
+            if key == "audioDelay" and not -5 <= typed <= 5:
+                raise ValueError("audioDelay must be between -5 and 5 seconds")
             if key == "clockOffset" and not -10 <= typed <= 10:
                 raise ValueError("clockOffset must be between -10 and 10 seconds")
             if key == "clockSecond" and typed not in ("sweep", "tick"):

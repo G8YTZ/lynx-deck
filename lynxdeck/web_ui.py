@@ -129,6 +129,9 @@ PAGE = r"""<!doctype html>
         <span class="muted">(only used by auto)</span></td></tr>
       <tr><th>Volume</th><td>
         <input type="number" id="set-volume" min="0" max="130" step="1"> %</td></tr>
+      <tr><th>Sound held back by</th><td>
+        <input type="number" id="set-audioDelay" min="-5" max="5" step="0.05"> seconds
+        <span class="muted">(lip-sync: this Pi's picture runs behind its sound)</span></td></tr>
       <tr><th>Clock ahead by</th><td>
         <input type="number" id="set-clockOffset" min="-10" max="10" step="0.1"> seconds
         <span class="muted">(the delay to air; any still named ...clock.png shows the clock)</span></td></tr>
@@ -307,6 +310,7 @@ async function loadSettings() {
   document.getElementById('set-defaultBehaviour').value = s.defaultBehaviour;
   document.getElementById('set-stillDuration').value = s.stillDuration;
   document.getElementById('set-volume').value = s.volume;
+  document.getElementById('set-audioDelay').value = s.audioDelay;
   document.getElementById('set-clockOffset').value = s.clockOffset;
   document.getElementById('set-clockSecond').value = s.clockSecond;
 }
@@ -320,6 +324,7 @@ async function saveSettings() {
       defaultBehaviour: document.getElementById('set-defaultBehaviour').value,
       stillDuration: Number(document.getElementById('set-stillDuration').value),
       volume: Number(document.getElementById('set-volume').value),
+      audioDelay: Number(document.getElementById('set-audioDelay').value),
       clockOffset: Number(document.getElementById('set-clockOffset').value),
       clockSecond: document.getElementById('set-clockSecond').value,
     });

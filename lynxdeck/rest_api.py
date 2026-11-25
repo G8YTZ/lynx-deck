@@ -149,6 +149,8 @@ def build_app(cfg, engine, deck_server=None, state=None):
         engine.notify_library_changed()
         if {"clockOffset", "clockSecond"} & applied.keys():
             await engine.player.clock_settings()
+        if "audioDelay" in applied:
+            await engine.player.audio_delay()
         log.info("Settings changed: %s", applied)
         return state.current()
 

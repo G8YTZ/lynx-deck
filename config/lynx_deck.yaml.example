@@ -58,6 +58,13 @@ default_behaviour: auto
 # HDMI0 (the port nearest USB-C) is vc4hdmi0; the other port is vc4hdmi1.
 audio_device: "alsa/sysdefault:CARD=vc4hdmi0"
 volume: 100
+
+# Lip-sync. The Pi's picture path (the DRM overlay plane) runs behind its
+# audio, so the sound is held back to meet it. Measure it with a sync test
+# clip off air; 1.0 was right on both GB3OO and GB3JT. It also puts the
+# clock's pips on the hands, which the clock offset cannot do: that moves
+# the face and the sound together.
+audio_delay: 1.0
 load_timeout: 5           # max wait for a clip to load before play is allowed
 
 # Where the git checkout lives, for the web UI's update button.
