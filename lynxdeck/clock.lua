@@ -182,20 +182,21 @@ local function junction(h, m, s)
     local t = h * 3600 + m * 60 + s
     local hour_mark = math.floor((t + AHEAD) / PERIOD) * PERIOD
     local pos = t + AHEAD - hour_mark            -- seconds into the sound
+    local apos = pos - sound_delay               -- where the sound itself is
     if junction_track and mp.get_property_number("aid") == junction_track then
-        if pos >= LENGTH - 0.5 then
+        if apos >= LENGTH - 0.5 then
             mp.set_property_number("aid", bed_track)  -- back to silence before it ends
         elseif check_at and mp.get_time() >= check_at then
             check_at = nil
             local a = mp.get_property_number("audio-pts")
-            if a and math.abs(a - (pos - sound_delay)) > 0.03 then
-                mp.commandv("seek", string.format("%.3f", pos - sound_delay), "absolute+exact")
-                mp.msg.info(string.format("top of the hour sound %.3f s out: corrected", a - pos))
+            if a and math.abs(a - apos) > 0.03 then
+                mp.commandv("seek", string.format("%.3f", apos), "absolute+exact")
+                mp.msg.info(string.format("top of the hour sound %.3f s out: corrected", a - apos))
             end
         end
         return
     end
-    if pos >= LENGTH - 1 or fired_for == hour_mark or not bed_track then return end
+    if apos >= LENGTH - 1 or fired_for == hour_mark or not bed_track then return end
     if mp.get_property_bool("pause") then
         if warned_for ~= hour_mark then
             warned_for = hour_mark
@@ -225,7 +226,7 @@ local function junction(h, m, s)
         mp.msg.warn("no top-of-the-hour sound: " .. file)
         return
     end
-    mp.commandv("seek", string.format("%.3f", pos - sound_delay), "absolute+exact")
+    mp.commandv("seek", string.format("%.3f", apos), "absolute+exact")
     check_at = mp.get_time() + 1
     note("file", file)
     note("sound-delay", sound_delay)
