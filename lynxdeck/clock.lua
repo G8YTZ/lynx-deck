@@ -21,6 +21,11 @@ local opts = { offset = 0, tick = "no", fixed = "", start = "" }
 require("mp.options").read_options(opts, "lynxclock")
 
 local offset = tonumber(opts.offset) or 0
+-- The Pi's picture runs behind its sound, so Lynx Deck holds the sound back
+-- with mpv's audio-delay. That cannot work here: this script keeps seeking
+-- the junction to the wall clock, which cancels it (GB3JT, 25 Nov 2026).
+-- So the junction carries the same delay itself, in where it seeks to.
+local sound_delay = 0
 local tick = opts.tick == "yes"
 
 -- Colours as ASS wants them: &HBBGGRR&
@@ -183,8 +188,8 @@ local function junction(h, m, s)
         elseif check_at and mp.get_time() >= check_at then
             check_at = nil
             local a = mp.get_property_number("audio-pts")
-            if a and math.abs(a - pos) > 0.03 then
-                mp.commandv("seek", string.format("%.3f", pos), "absolute+exact")
+            if a and math.abs(a - (pos - sound_delay)) > 0.03 then
+                mp.commandv("seek", string.format("%.3f", pos - sound_delay), "absolute+exact")
                 mp.msg.info(string.format("top of the hour sound %.3f s out: corrected", a - pos))
             end
         end
@@ -220,9 +225,10 @@ local function junction(h, m, s)
         mp.msg.warn("no top-of-the-hour sound: " .. file)
         return
     end
-    mp.commandv("seek", string.format("%.3f", pos), "absolute+exact")
+    mp.commandv("seek", string.format("%.3f", pos - sound_delay), "absolute+exact")
     check_at = mp.get_time() + 1
     note("file", file)
+    note("sound-delay", sound_delay)
     note("fired-at", string.format("%.3f", pos))
     mp.msg.info(string.format("top of the hour: %s from %.2f s", file, pos))
 end
@@ -338,7 +344,8 @@ mp.register_script_message("lynxclock-recalibrate", function()
     mp.msg.info("clock step reported: recalibrating")
 end)
 
-mp.register_script_message("lynxclock", function(off, tk, dir)
+mp.register_script_message("lynxclock", function(off, tk, dir, delay)
+    sound_delay = tonumber(delay) or 0
     offset = tonumber(off) or 0
     tick = tk == "yes"
     if dir and dir ~= "" then own_dir = dir end

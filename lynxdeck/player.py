@@ -214,13 +214,15 @@ class Mpv:
         clip out of lip-sync and the pips ahead of the clock's hands (both
         Decks, 25 Nov 2026). One figure fixes both."""
         await self.set("audio-delay", self.cfg.audio_delay)
+        await self.clock_settings()      # the junction carries it itself
 
     async def clock_settings(self):
         """Tell clock.lua the offset and second-hand style; harmless if it is absent."""
         try:
             await self.command("script-message", "lynxclock", str(self.cfg.clock_offset),
                                "yes" if self.cfg.clock_second == "tick" else "no",
-                               str(Path(self.cfg.clock_dir) / "junction") + "/")
+                               str(Path(self.cfg.clock_dir) / "junction") + "/",
+                               str(self.cfg.audio_delay))
         except PlayerError as exc:
             log.warning("Could not set the clock: %s", exc)
 
