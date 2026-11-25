@@ -147,6 +147,11 @@ end
 -- face gets an endless silent track as it loads, the hour's sound is switched
 -- in at 59:30 and the silence switched back before the sound runs out.
 local AHEAD, LENGTH = 30, 35    -- the sound starts 30 s before the hour
+-- Normally the junction goes out on the hour. Test mode (lynxclock-test)
+-- puts the pips on every minute instead, with the generic pips-only file,
+-- so a timing fault can be chased a minute at a time. Nothing else changes.
+local PERIOD = 3600
+local testing = false
 local here = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("[^/]*$", "")
 local generic_dir = here .. "../clock/junction/"   -- pips only, for any Deck
 local own_dir = nil                                -- this Deck's own (Lynx Deck tells us)
@@ -164,7 +169,7 @@ end
 
 local function junction(h, m, s)
     local t = h * 3600 + m * 60 + s
-    local hour_mark = math.floor((t + AHEAD) / 3600) * 3600
+    local hour_mark = math.floor((t + AHEAD) / PERIOD) * PERIOD
     local pos = t + AHEAD - hour_mark            -- seconds into the sound
     if junction_track and mp.get_property_number("aid") == junction_track then
         if pos >= LENGTH - 0.5 then
@@ -188,12 +193,12 @@ local function junction(h, m, s)
         return
     end
     fired_for = hour_mark
-    local hour = (hour_mark / 3600) % 12
+    local hour = math.floor(hour_mark / 3600) % 12
     if hour == 0 then hour = 12 end
     -- this Deck's own first, then the generic ones; lossless .flac, or the
     -- .m4a that 1.6 and 1.7 built until the sounds are rebuilt
     local file = nil
-    for _, dir in ipairs({ own_dir or "", generic_dir }) do
+    for _, dir in ipairs(testing and { generic_dir } or { own_dir or "", generic_dir }) do
         for _, ext in ipairs({ "flac", "m4a" }) do
             local path = string.format("%sjunction_%02d.%s", dir, hour, ext)
             local f = dir ~= "" and io.open(path, "rb")
@@ -299,6 +304,21 @@ end)
 
 mp.register_script_message("lynxclock-fadeout", function(secs)
     if showing then fade_out = { mp.get_time(), math.max(0.1, tonumber(secs) or 1) } end
+end)
+
+-- Pips on every minute, for testing: the generic pips-only file, no music
+-- and no announcement. Leave the face on screen and listen.
+mp.register_script_message("lynxclock-test", function(on)
+    testing = on ~= "no"
+    PERIOD = testing and 60 or 3600
+    fired_for, warned_for, check_at = nil, nil, nil
+    if junction_track then
+        if bed_track then mp.set_property_number("aid", bed_track) end
+        mp.commandv("audio-remove", tostring(junction_track))
+        junction_track = nil
+    end
+    mp.msg.info(testing and "clock test: pips every minute"
+                        or "clock test off: pips on the hour")
 end)
 
 -- Lynx Deck's scheduler saw the system clock step: take its word for it

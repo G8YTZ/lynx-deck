@@ -66,6 +66,8 @@ def main():
     ap.add_argument("--offset", type=float, default=None,
                     help="the Deck's clock offset, for the verdict line")
     ap.add_argument("--seconds", type=float, default=150.0, help="how long to watch")
+    ap.add_argument("--minute", action="store_true",
+                    help="the Deck is in test mode, with the pips on every minute")
     a = ap.parse_args()
 
     try:
@@ -89,13 +91,21 @@ def main():
                 span = (t1 - t0).total_seconds()
                 k = (LONG_PIP_AT - p0) / (p1 - p0) if p1 != p0 else 0
                 at = t0 + dt.timedelta(seconds=span * k)
-                hour = at.replace(minute=0, second=0, microsecond=0)
-                if at.minute >= 30:
-                    hour += dt.timedelta(hours=1)
-                early = (hour - at).total_seconds()
+                if a.minute:
+                    mark = at.replace(second=0, microsecond=0)
+                    if at.second >= 30:
+                        mark += dt.timedelta(minutes=1)
+                    name = "minute"
+                else:
+                    mark = at.replace(minute=0, second=0, microsecond=0)
+                    if at.minute >= 30:
+                        mark += dt.timedelta(hours=1)
+                    name = "hour"
+                early = (mark - at).total_seconds()
                 print()
                 print(f"LONG PIP left the Deck at {at:%H:%M:%S.%f}"[:-3])
-                print(f"  that is {early:+.3f} s before the hour by this Deck's system clock")
+                print(f"  that is {early:+.3f} s before the {name} "
+                      f"by this Deck's system clock")
                 if a.offset is not None:
                     err = early - a.offset
                     if abs(err) <= 0.05:
